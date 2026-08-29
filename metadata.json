@@ -1,0 +1,6 @@
+{
+  "name": "CodeQuest",
+  "description": "Learn to Code. Play. Build. Level Up. A gamified coding education app with progressive levels, interactive exercises, code sandbox, and personalized learning paths.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
