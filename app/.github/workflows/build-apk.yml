@@ -117,19 +117,15 @@ jobs:
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
+          name: CodeQuest-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
       - name: Prepare APK release asset
         id: prepare-asset
         run: |
-          REPO_NAME=$(basename "${{ github.repository }}")
-          SANITIZED_REPO_NAME=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')
-          
           ASSET_DIR=$(mktemp -d)
-          RUN_NUM="${{ github.run_number }}"
-          ASSET_FILENAME="${SANITIZED_REPO_NAME}-debug-build-${RUN_NUM}.apk"
+          ASSET_FILENAME="CodeQuest-debug.apk"
           ASSET_PATH="$ASSET_DIR/$ASSET_FILENAME"
           
           cp app/build/outputs/apk/debug/app-debug.apk "$ASSET_PATH"
@@ -160,15 +156,13 @@ jobs:
           fi
           
           RUN_NUM="${{ github.run_number }}"
-          RUN_ATTEMPT="${{ github.run_attempt }}"
-          TAG_NAME="debug-apk-build-${RUN_NUM}-${RUN_ATTEMPT}"
-          RELEASE_TITLE="Debug APK Build #$RUN_NUM"
+          TAG_NAME="apk-build-${RUN_NUM}"
+          RELEASE_TITLE="CodeQuest Debug APK Build #$RUN_NUM"
           COMMIT_SHA="${{ github.sha }}"
           
-          RELEASE_NOTES="This is an automatically generated debug APK.
+          RELEASE_NOTES="This is an automatically generated debug APK for CodeQuest.
           - Built by: GitHub Actions
           - Run Number: $RUN_NUM
-          - Run Attempt: $RUN_ATTEMPT
           - Source Commit SHA: $COMMIT_SHA
           - Purpose: Testing
           - Note: Not a Play Store production release; signed only with a temporary debug keystore."
@@ -190,8 +184,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           RUN_NUM="${{ github.run_number }}"
-          RUN_ATTEMPT="${{ github.run_attempt }}"
-          TAG_NAME="debug-apk-build-${RUN_NUM}-${RUN_ATTEMPT}"
+          TAG_NAME="apk-build-${RUN_NUM}"
           ASSET_FILENAME="${{ steps.prepare-asset.outputs.asset_filename }}"
           
           if [ "${{ steps.release.outcome }}" == "success" ]; then
@@ -200,7 +193,7 @@ jobs:
             
             RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
             echo "Release Tag: $TAG_NAME"
-            echo "Release Title: Debug APK Build #$RUN_NUM"
+            echo "Release Title: CodeQuest Debug APK Build #$RUN_NUM"
             echo "Release URL: $RELEASE_URL"
             echo "APK Asset Filename: $ASSET_FILENAME"
             
@@ -214,7 +207,7 @@ jobs:
               echo "- **Asset Filename**: \`$ASSET_FILENAME\`"
               echo ""
               echo "You can download the APK directly from the [Release Assets Section]($RELEASE_URL)."
-              echo "As a backup, the normal Actions artifact named \`app-debug-apk\` is also available in the workflow run summary."
+              echo "As a backup, the normal Actions artifact named \`CodeQuest-debug-apk\` is also available in the workflow run summary."
             } >> $GITHUB_STEP_SUMMARY
           else
             echo "::warning::GitHub Release publishing failed or was skipped, but the APK build and artifact upload succeeded."
@@ -224,7 +217,7 @@ jobs:
               echo ""
               echo "The debug APK build and artifact upload completed successfully, but GitHub Release publishing failed or was skipped."
               echo ""
-              echo "- The Actions artifact named \`app-debug-apk\` remains fully available for download from this workflow run summary."
+              echo "- The Actions artifact named \`CodeQuest-debug-apk\` remains fully available for download from this workflow run summary."
               echo "- You can manually create a release or retry the workflow."
             } >> $GITHUB_STEP_SUMMARY
           fi
