@@ -40,6 +40,9 @@ interface UserDao {
   @Query("UPDATE user_profile SET hasCompletedOnboarding = 1, experienceLevel = :experience, selectedLanguage = :language, dailyGoalMinutes = :goal WHERE id = 1")
   suspend fun completeOnboarding(experience: String, language: String, goal: Int)
 
+  @Query("UPDATE user_profile SET hasCompletedOnboarding = 0 WHERE id = 1")
+  suspend fun resetOnboarding()
+
   @Query("UPDATE user_profile SET isGuest = 0, email = :email, username = :username WHERE id = 1")
   suspend fun upgradeAccount(email: String, username: String)
 

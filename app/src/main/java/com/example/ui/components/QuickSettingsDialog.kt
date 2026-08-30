@@ -55,7 +55,8 @@ fun QuickSettingsDialog(
   onDismiss: () -> Unit,
   onUpdateSettings: (sound: Boolean, haptics: Boolean, dark: Boolean, reducedMotion: Boolean) -> Unit,
   onRefillHearts: () -> Unit,
-  onResetProgress: () -> Unit
+  onResetProgress: () -> Unit,
+  onResetOnboarding: () -> Unit
 ) {
   var sound by remember { mutableStateOf(user?.soundEnabled ?: true) }
   var haptics by remember { mutableStateOf(user?.hapticsEnabled ?: true) }
@@ -183,6 +184,33 @@ fun QuickSettingsDialog(
           )
           Spacer(modifier = Modifier.width(8.dp))
           Text("Refill Hearts to 5/5", fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Reset Progress Button (for testing)
+        Button(
+          onClick = {
+            onResetOnboarding()
+            onDismiss()
+          },
+          colors = ButtonDefaults.buttonColors(
+            containerColor = QuestPrimary.copy(alpha = 0.1f),
+            contentColor = QuestPrimary
+          ),
+          shape = RoundedCornerShape(14.dp),
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .testTag("settings_replay_onboarding_button")
+        ) {
+          Icon(
+            imageVector = Icons.Default.RestartAlt,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text("Replay Onboarding Flow", fontWeight = FontWeight.Medium)
         }
 
         Spacer(modifier = Modifier.height(10.dp))

@@ -18,6 +18,7 @@ import com.example.data.models.SubmissionRecordEntity
 import com.example.data.models.UserEntity
 import com.example.data.models.WorldEntity
 import com.example.data.models.EventEntity
+import com.example.ui.audio.SoundManager
 import com.example.data.models.FriendEntity
 import com.example.data.models.UnlockedCosmeticEntity
 import com.example.data.models.LeaderboardCompetitorEntity
@@ -48,6 +49,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   val devLabRepository = com.example.data.repository.DevLabRepository(database.devLabDao())
   private val authRepository = AuthRepository(database.userDao())
   val aiService get() = repository.aiService
+  
+  private val soundManager = SoundManager(application)
+  val soundManagerInstance get() = soundManager
 
   // Developer Lab StateFlows
   val bugHunts = devLabRepository.getAllBugHunts()
@@ -272,9 +276,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     activeReward.value = null
   }
 
-  fun completeOnboarding(experience: String, language: String, dailyGoal: Int) {
+  fun completeOnboarding(experience: String, goal: String, path: String) {
     viewModelScope.launch {
-      repository.completeOnboarding(experience, language, dailyGoal)
+      // Map goal string to minutes for database compatibility
+      val goalMinutes = when (goal) {
+        "LEARN" -> 15
+        "PRACTICE" -> 10
+        "INTERVIEW" -> 30
+        "PROBLEM_SOLVING" -> 20
+        "BETTER_PROG" -> 15
+        else -> 15
+      }
+      repository.completeOnboarding(experience, path.lowercase(), goalMinutes)
+      playSuccessSound()
+    }
+  }
+
+  fun resetOnboarding() {
+    viewModelScope.launch {
+      repository.resetOnboarding()
     }
   }
 
@@ -467,9 +487,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   }
 
   fun updateSettings(sound: Boolean, haptics: Boolean, dark: Boolean, reducedMotion: Boolean) {
+    soundManager.setEnabled(sound)
     viewModelScope.launch {
       repository.updateSettings(sound, haptics, dark, reducedMotion)
     }
+  }
+
+  // Sound triggers
+  fun playTapSound() = soundManager.playTap()
+  fun playCorrectSound() = soundManager.playCorrect()
+  fun playWrongSound() = soundManager.playWrong()
+  fun playSuccessSound() = soundManager.playSuccess()
+  fun playSelectSound() = soundManager.playSelect()
+
+  override fun onCleared() {
+    super.onCleared()
+    soundManager.release()
   }
 
   // Milestone 7 operations

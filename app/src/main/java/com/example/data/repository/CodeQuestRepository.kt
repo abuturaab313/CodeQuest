@@ -242,6 +242,10 @@ class CodeQuestRepository(
     userDao.completeOnboarding(experienceLevel, language, dailyGoalMinutes)
   }
 
+  suspend fun resetOnboarding() {
+    userDao.resetOnboarding()
+  }
+
   suspend fun addRewards(xpGained: Int, coinsGained: Int): LevelUpResult {
     val user = userDao.getUserProfileOnce() ?: InitialData.defaultUser()
     val oldXp = user.xp

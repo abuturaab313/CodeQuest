@@ -21,6 +21,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.models.ExerciseEntity
 import com.example.data.models.LessonEntity
 import com.example.ui.MainViewModel
+import com.example.ui.audio.LocalSoundManager
 import com.example.ui.components.GameHudBar
 import com.example.ui.components.LevelUpDialog
 import com.example.ui.components.QuickSettingsDialog
@@ -78,7 +80,10 @@ enum class MainTab(val title: String, val icon: ImageVector, val tag: String) {
 fun CodeQuestApp(
   viewModel: MainViewModel = viewModel()
 ) {
-  val user by viewModel.userProfile.collectAsStateWithLifecycle()
+  val soundManager = viewModel.soundManagerInstance
+
+  CompositionLocalProvider(LocalSoundManager provides soundManager) {
+    val user by viewModel.userProfile.collectAsStateWithLifecycle()
   val playerProgress by viewModel.playerProgress.collectAsStateWithLifecycle()
   val dailyQuests by viewModel.dailyQuests.collectAsStateWithLifecycle()
   val achievements by viewModel.achievements.collectAsStateWithLifecycle()
@@ -152,7 +157,7 @@ fun CodeQuestApp(
         activeBugHunt = null
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Git Lab Screen
@@ -173,7 +178,7 @@ fun CodeQuestApp(
         activeGitExercise = null
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Test First Screen
@@ -186,7 +191,7 @@ fun CodeQuestApp(
         activeTestFirstChallenge = null
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Code Review Screen
@@ -199,7 +204,7 @@ fun CodeQuestApp(
         activeCodeReview = null
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // README Builder Screen
@@ -211,7 +216,7 @@ fun CodeQuestApp(
         showReadmeBuilder = false
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Portfolio Screen
@@ -227,7 +232,7 @@ fun CodeQuestApp(
       },
       onNavigateBack = { showPortfolioScreen = false }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Create Project Screen
@@ -241,7 +246,7 @@ fun CodeQuestApp(
         }
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Level Up Modal
@@ -265,6 +270,9 @@ fun CodeQuestApp(
       },
       onResetProgress = {
         viewModel.resetAllProgress()
+      },
+      onResetOnboarding = {
+        viewModel.resetOnboarding()
       }
     )
   }
@@ -282,11 +290,11 @@ fun CodeQuestApp(
   // If user hasn't finished onboarding, show full-bleed Onboarding flow
   if (user != null && !user!!.hasCompletedOnboarding) {
     OnboardingScreen(
-      onComplete = { experience, language, dailyGoal ->
-        viewModel.completeOnboarding(experience, language, dailyGoal)
+      onComplete = { experience, goal, path ->
+        viewModel.completeOnboarding(experience, goal, path)
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // If an active Project Workspace is opened, show ProjectWorkspaceScreen
@@ -296,7 +304,7 @@ fun CodeQuestApp(
       viewModel = viewModel,
       onNavigateBack = { activeProjectId = null }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // If an active coding challenge is opened, show the Code Lab Screen
@@ -309,7 +317,7 @@ fun CodeQuestApp(
         activeChallengeId = nextId
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // If an active lesson is being taken, show the Lesson Player Screen
@@ -340,29 +348,31 @@ fun CodeQuestApp(
         activeLessonProgress = null
       },
       onCompleteLesson = { totalExercises, correctCount, mistakeCount, hintsUsed, baseXp, baseCoins ->
-        val currentLessonItem = activeLesson!!
-        val currentId = currentLessonItem.id
-        // Calculate sequential next lesson ID in curriculum
-        val currentIndex = lessons.indexOfFirst { it.id == currentId }
-        val nextId = if (currentIndex in 0 until lessons.size - 1) {
-          lessons[currentIndex + 1].id
-        } else {
-          null
-        }
+        activeLesson?.let { currentLessonItem ->
+          val currentId = currentLessonItem.id
+          // Calculate sequential next lesson ID in curriculum
+          val currentIndex = lessons.indexOfFirst { it.id == currentId }
+          val nextId = if (currentIndex in 0 until lessons.size - 1) {
+            lessons[currentIndex + 1].id
+          } else {
+            null
+          }
 
-        viewModel.completeLesson(
-          lessonId = currentId,
-          totalExercises = totalExercises,
-          correctCount = correctCount,
-          mistakeCount = mistakeCount,
-          hintsUsedCount = hintsUsed,
-          baseXp = baseXp,
-          baseCoins = baseCoins,
-          nextLessonId = nextId
-        )
-        activeLesson = null
-        activeExercises = emptyList()
-        activeLessonProgress = null
+          viewModel.completeLesson(
+            lessonId = currentId,
+            totalExercises = totalExercises,
+            correctCount = correctCount,
+            mistakeCount = mistakeCount,
+            hintsUsedCount = hintsUsed,
+            baseXp = baseXp,
+            baseCoins = baseCoins,
+            nextLessonId = nextId
+          )
+          activeLesson = null
+          activeExercises = emptyList()
+          activeLessonProgress = null
+          viewModel.playSuccessSound()
+        }
       },
       onDeductHeart = {
         viewModel.deductHeart()
@@ -370,11 +380,14 @@ fun CodeQuestApp(
       onRecordMistake = { exercise, wrongAnswer ->
         viewModel.recordMistake(exercise, wrongAnswer)
       },
+      onCorrectAnswer = { viewModel.playCorrectSound() },
+      onWrongAnswer = { viewModel.playWrongSound() },
+      onPlayTap = { viewModel.playTapSound() },
       onSaveProgress = { progress ->
         viewModel.saveLessonProgress(progress)
       }
     )
-    return
+    return@CompositionLocalProvider
   }
 
   // Main Gaming Hub with Top HUD and Bottom Navigation Bar
@@ -386,14 +399,17 @@ fun CodeQuestApp(
       GameHudBar(
         user = user,
         onHeartsClick = {
+          viewModel.playTapSound()
           if ((user?.currentHearts ?: 0) < 5) {
             viewModel.restoreHearts()
           }
         },
         onStreakClick = {
+          viewModel.playTapSound()
           selectedTab = MainTab.HOME
         },
         onCoinsClick = {
+          viewModel.playTapSound()
           selectedTab = MainTab.PROFILE
         }
       )
@@ -410,7 +426,10 @@ fun CodeQuestApp(
           val isSelected = selectedTab == tab
           NavigationBarItem(
             selected = isSelected,
-            onClick = { selectedTab = tab },
+            onClick = { 
+              selectedTab = tab 
+              viewModel.playTapSound()
+            },
             icon = {
               Icon(
                 imageVector = tab.icon,
@@ -461,6 +480,7 @@ fun CodeQuestApp(
                 activeExercises = ex
                 activeLessonProgress = prog
                 activeLesson = lessonToStart
+                viewModel.playTapSound()
               }
             }
           },
@@ -484,7 +504,8 @@ fun CodeQuestApp(
           },
           onNavigateToProfile = {
             selectedTab = MainTab.PROFILE
-          }
+          },
+          onOpenCodeCoach = { ctx -> viewModel.openCodeCoach(ctx) }
         )
 
         MainTab.LEARN -> LearnScreen(
@@ -600,4 +621,5 @@ fun CodeQuestApp(
       )
     }
   }
+}
 }

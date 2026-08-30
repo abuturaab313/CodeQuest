@@ -53,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateListOf
@@ -108,6 +109,9 @@ fun LessonScreen(
   onCompleteLesson: (totalExercises: Int, correctCount: Int, mistakeCount: Int, hintsUsed: Int, baseXp: Int, baseCoins: Int) -> Unit,
   onDeductHeart: () -> Unit,
   onRecordMistake: (ExerciseEntity, String) -> Unit,
+  onCorrectAnswer: () -> Unit = {},
+  onWrongAnswer: () -> Unit = {},
+  onPlayTap: () -> Unit = {},
   onSaveProgress: (LessonProgressEntity) -> Unit,
   initialProgress: LessonProgressEntity? = null,
   currentHearts: Int,
@@ -144,6 +148,7 @@ fun LessonScreen(
   var typedCode by remember { mutableStateOf("") }
   var outputLog by remember { mutableStateOf<String?>(null) }
   var isAnswerSubmitted by remember { mutableStateOf(false) }
+  var isProcessingClick by remember { mutableStateOf(false) }
   var validationResult by remember { mutableStateOf<ValidationResult?>(null) }
   var currentHintIndex by remember { mutableIntStateOf(0) }
 
@@ -401,7 +406,10 @@ fun LessonScreen(
                 MultipleChoiceExercise(
                   exercise = currentExercise,
                   selectedAnswer = selectedAnswer,
-                  onSelectAnswer = { selectedAnswer = it },
+                  onSelectAnswer = { 
+                    selectedAnswer = it 
+                    onPlayTap()
+                  },
                   isSubmitted = isAnswerSubmitted
                 )
               }
@@ -409,7 +417,10 @@ fun LessonScreen(
               ExerciseType.TRUE_FALSE -> {
                 TrueFalseExercise(
                   selectedAnswer = selectedAnswer,
-                  onSelectAnswer = { selectedAnswer = it },
+                  onSelectAnswer = { 
+                    selectedAnswer = it 
+                    onPlayTap()
+                  },
                   isSubmitted = isAnswerSubmitted
                 )
               }
@@ -418,7 +429,10 @@ fun LessonScreen(
                 FillInBlankExercise(
                   exercise = currentExercise,
                   currentValue = selectedAnswer ?: "",
-                  onValueChange = { selectedAnswer = it },
+                  onValueChange = { 
+                    selectedAnswer = it 
+                    onPlayTap()
+                  },
                   isSubmitted = isAnswerSubmitted
                 )
               }
@@ -432,17 +446,20 @@ fun LessonScreen(
                     availableTokens.remove(token)
                     assembledTokens.add(token)
                     selectedAnswer = assembledTokens.joinToString(", ")
+                    onPlayTap()
                   },
                   onRemoveToken = { idx ->
                     val token = assembledTokens.removeAt(idx)
                     availableTokens.add(token)
                     selectedAnswer = assembledTokens.joinToString(", ")
+                    onPlayTap()
                   },
                   onReset = {
                     assembledTokens.clear()
                     availableTokens.clear()
                     availableTokens.addAll(currentExercise.parseOptions().shuffled())
                     selectedAnswer = null
+                    onPlayTap()
                   },
                   isSubmitted = isAnswerSubmitted
                 )
@@ -455,10 +472,12 @@ fun LessonScreen(
                   onPairMatched = { concept, def ->
                     matchedPairs[concept] = def
                     selectedAnswer = matchedPairs.entries.joinToString(";") { "${it.key}:${it.value}" }
+                    onPlayTap()
                   },
                   onUnmatch = { concept ->
                     matchedPairs.remove(concept)
                     selectedAnswer = matchedPairs.entries.joinToString(";") { "${it.key}:${it.value}" }
+                    onPlayTap()
                   },
                   isSubmitted = isAnswerSubmitted
                 )
@@ -642,59 +661,75 @@ fun LessonScreen(
           }
         }
 
-        // Bottom Action Button
+  // Bottom Action Button
         if (!isShowingConceptIntro && currentExercise != null) {
-          GameButton(
-            text = when {
-              !isAnswerSubmitted -> "Check Answer"
-              exerciseIndex < totalExercises - 1 -> "Next Exercise"
-              lesson.lessonType == LessonType.BOSS -> "Defeat Boss"
-              else -> "Complete Level"
-            },
-            onClick = {
-              if (!isAnswerSubmitted) {
-                val userSubmission = selectedAnswer ?: typedCode
-                val result = answerValidator.validate(
-                  type = currentExercise.type,
-                  submittedAnswer = userSubmission,
-                  correctAnswers = currentExercise.parseCorrectAnswers(),
-                  options = currentExercise.parseOptions(),
-                  solutionCode = currentExercise.solutionCode,
-                  expectedOutput = currentExercise.expectedOutput
-                )
+          key(exerciseIndex) {
+            GameButton(
+              text = when {
+                !isAnswerSubmitted -> "Check Answer"
+                exerciseIndex < totalExercises - 1 -> "Next Exercise"
+                lesson.lessonType == LessonType.BOSS -> "Defeat Boss"
+                else -> "Complete Level"
+              },
+              onClick = {
+                if (isProcessingClick) return@GameButton
+                
+                if (!isAnswerSubmitted) {
+                  isProcessingClick = true
+                  try {
+                    val userSubmission = selectedAnswer ?: typedCode
+                    val result = answerValidator.validate(
+                      type = currentExercise.type,
+                      submittedAnswer = userSubmission,
+                      correctAnswers = currentExercise.parseCorrectAnswers(),
+                      options = currentExercise.parseOptions(),
+                      solutionCode = currentExercise.solutionCode,
+                      expectedOutput = currentExercise.expectedOutput
+                    )
 
-                validationResult = result
-                isAnswerSubmitted = true
-
-                if (result.isCorrect) {
-                  correctCount += 1
+                    validationResult = result
+                    isAnswerSubmitted = true
+                    
+                    if (result.isCorrect) {
+                      correctCount += 1
+                      onCorrectAnswer()
+                    } else {
+                      mistakeCount += 1
+                      onDeductHeart()
+                      onRecordMistake(currentExercise, userSubmission)
+                      onWrongAnswer()
+                    }
+                  } finally {
+                    isProcessingClick = false
+                  }
                 } else {
-                  mistakeCount += 1
-                  onDeductHeart()
-                  onRecordMistake(currentExercise, userSubmission)
+                  // Advance or Complete
+                  isProcessingClick = true
+                  try {
+                    if (exerciseIndex < totalExercises - 1) {
+                      loadExercise(exerciseIndex + 1)
+                    } else {
+                      // Compute final score and transition to victory screen
+                      val scoring = scoringService.calculateLessonScore(
+                        totalExercises = totalExercises,
+                        correctCount = correctCount,
+                        mistakeCount = mistakeCount,
+                        hintsUsedCount = hintsUsedCount,
+                        baseXp = lesson.xpReward,
+                        baseCoins = lesson.coinReward
+                      )
+                      completionScoringResult = scoring
+                    }
+                  } finally {
+                    isProcessingClick = false
+                  }
                 }
-              } else {
-                // Advance or Complete
-                if (exerciseIndex < totalExercises - 1) {
-                  loadExercise(exerciseIndex + 1)
-                } else {
-                  // Compute final score and transition to victory screen
-                  val scoring = scoringService.calculateLessonScore(
-                    totalExercises = totalExercises,
-                    correctCount = correctCount,
-                    mistakeCount = mistakeCount,
-                    hintsUsedCount = hintsUsedCount,
-                    baseXp = lesson.xpReward,
-                    baseCoins = lesson.coinReward
-                  )
-                  completionScoringResult = scoring
-                }
-              }
-            },
-            style = if (isAnswerSubmitted && validationResult?.isCorrect == false) GameButtonStyle.DANGER else GameButtonStyle.PRIMARY,
-            modifier = Modifier.padding(top = 12.dp),
-            testTag = "lesson_action_button"
-          )
+              },
+              style = if (isAnswerSubmitted && validationResult?.isCorrect == false) GameButtonStyle.DANGER else GameButtonStyle.PRIMARY,
+              modifier = Modifier.padding(top = 12.dp),
+              testTag = "lesson_action_button"
+            )
+          }
         }
       }
     }

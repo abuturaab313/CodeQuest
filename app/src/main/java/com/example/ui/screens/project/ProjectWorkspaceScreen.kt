@@ -81,6 +81,7 @@ import com.example.domain.execution.ExecutionResult
 import com.example.domain.execution.ProjectTestSuiteResult
 import com.example.domain.languages.LanguageRegistry
 import com.example.ui.MainViewModel
+import com.example.ui.audio.LocalSoundManager
 import com.example.ui.components.editor.CodeEditorView
 import com.example.ui.components.project.DeleteFileDialog
 import com.example.ui.components.project.NewFileDialog
@@ -117,6 +118,7 @@ fun ProjectWorkspaceScreen(
 ) {
   val projectRepo = remember { viewModel.projectRepository }
   val coroutineScope = rememberCoroutineScope()
+  val soundManager = LocalSoundManager.current
 
   val project by projectRepo.observeProjectById(projectId).collectAsState(initial = null)
   val files by projectRepo.getFilesForProject(projectId).collectAsState(initial = emptyList())
@@ -469,7 +471,10 @@ fun ProjectWorkspaceScreen(
           val isSelected = selectedTab == tab
           Tab(
             selected = isSelected,
-            onClick = { selectedTab = tab },
+            onClick = { 
+              soundManager?.playTap()
+              selectedTab = tab 
+            },
             text = {
               Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(

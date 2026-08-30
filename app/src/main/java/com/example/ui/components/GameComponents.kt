@@ -55,6 +55,8 @@ import com.example.ui.theme.QuestSecondaryDark
 import com.example.ui.theme.StreakFlame
 import com.example.ui.theme.XpGold
 
+import com.example.ui.audio.LocalSoundManager
+
 @Composable
 fun GameHudBar(
   user: UserEntity?,
@@ -233,6 +235,7 @@ fun GameButton(
   val interactionSource = remember { MutableInteractionSource() }
   val isPressed by interactionSource.collectIsPressedAsState()
   val scale by animateFloatAsState(targetValue = if (isPressed) 0.97f else 1f, label = "button_press")
+  val soundManager = LocalSoundManager.current
 
   val backgroundBrush = when (style) {
     GameButtonStyle.PRIMARY -> Brush.horizontalGradient(listOf(QuestPrimaryLight, QuestPrimaryDark))
@@ -264,7 +267,10 @@ fun GameButton(
         interactionSource = interactionSource,
         indication = null,
         enabled = enabled,
-        onClick = onClick
+        onClick = {
+          soundManager?.playTap()
+          onClick()
+        }
       )
       .minimumInteractiveComponentSize()
       .testTag(testTag),
@@ -303,8 +309,12 @@ fun GameCard(
   onClick: (() -> Unit)? = null,
   content: @Composable () -> Unit
 ) {
+  val soundManager = LocalSoundManager.current
   val clickableModifier = if (onClick != null) {
-    Modifier.clickable(onClick = onClick)
+    Modifier.clickable {
+      soundManager?.playTap()
+      onClick()
+    }
   } else {
     Modifier
   }

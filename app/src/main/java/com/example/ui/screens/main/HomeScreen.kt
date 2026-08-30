@@ -221,6 +221,7 @@ fun HomeScreen(
     // "One Next Step" Continue Learning Hero Card - Maximum visual dominance
     item {
       ContinueLearningHeroCard(
+        user = user,
         progress = playerProgress,
         onContinue = { onContinueLearning(playerProgress?.currentLesson) }
       )
@@ -501,14 +502,31 @@ private fun PlayerHeaderSection(
           Column {
             Text(
               text = user?.username ?: "Code Quester",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
               color = MaterialTheme.colorScheme.onSurface
             )
-            Text(
-              text = "${user?.selectedLanguage?.replaceFirstChar { it.uppercase() } ?: "Python"} Explorer",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = QuestPrimary.copy(alpha = 0.1f),
+                modifier = Modifier.padding(end = 6.dp)
+              ) {
+                Text(
+                  text = user?.experienceLevel?.uppercase() ?: "BEGINNER",
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    color = QuestPrimary,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                  ),
+                  modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+              }
+              Text(
+                text = "${user?.selectedLanguage?.replaceFirstChar { it.uppercase() } ?: "Python"} Explorer",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
           }
         }
 
@@ -699,6 +717,7 @@ private fun DayBubble(day: DayActivity) {
 
 @Composable
 private fun ContinueLearningHeroCard(
+  user: UserEntity?,
   progress: PlayerProgress?,
   onContinue: () -> Unit
 ) {
@@ -707,6 +726,15 @@ private fun ContinueLearningHeroCard(
   val completedCount = progress?.completedLessonsCount ?: 0
   val totalCount = progress?.totalLessonsCount?.coerceAtLeast(1) ?: 8
   val progressFraction = completedCount.toFloat() / totalCount
+  
+  val pathTitle = when(user?.selectedLanguage?.uppercase()) {
+    "PYTHON" -> "Python Mastery"
+    "WEB" -> "Web Development"
+    "MOBILE" -> "Mobile Engineer"
+    "SYSTEMS" -> "Systems Architect"
+    "DATA" -> "Data Scientist"
+    else -> "Code Mastery"
+  }
 
   GameCard(
     borderColor = QuestPrimary.copy(alpha = 0.4f)
@@ -744,7 +772,7 @@ private fun ContinueLearningHeroCard(
             }
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-              text = "Python Mastery",
+              text = pathTitle,
               style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
               color = Color.White
             )
@@ -757,7 +785,7 @@ private fun ContinueLearningHeroCard(
               .padding(horizontal = 10.dp, vertical = 4.dp)
           ) {
             Text(
-              text = "BEGINNER",
+              text = user?.experienceLevel?.uppercase() ?: "BEGINNER",
               style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
               color = Color.White
             )
