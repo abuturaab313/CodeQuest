@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -139,6 +143,9 @@ fun ProjectWorkspaceScreen(
   var showResetConfirmDialog by remember { mutableStateOf(false) }
   var showLeaveConfirmDialog by remember { mutableStateOf(false) }
   var showMoreMenu by remember { mutableStateOf(false) }
+  var showCommitDialog by remember { mutableStateOf(false) }
+  var showHistoryDialog by remember { mutableStateOf(false) }
+  var versionHistoryList by remember { mutableStateOf<List<com.example.data.models.ProjectVersionEntity>>(emptyList()) }
 
   // Debounced auto-save job
   var autoSaveJob by remember { mutableStateOf<Job?>(null) }
@@ -343,6 +350,20 @@ fun ProjectWorkspaceScreen(
             }
           }
 
+          // Portfolio Toggle (Custom Projects Only)
+          project?.takeIf { it.isCustom }?.let { proj ->
+            IconButton(
+              onClick = { viewModel.toggleProjectPortfolio(proj.id, !proj.isPortfolio) },
+              modifier = Modifier.testTag("btn_toggle_portfolio")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Work,
+                contentDescription = "Toggle Portfolio",
+                tint = if (proj.isPortfolio) QuestGold else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+              )
+            }
+          }
+
           // Code Coach Button
           IconButton(
             onClick = {
@@ -393,6 +414,26 @@ fun ProjectWorkspaceScreen(
                 val starter = starterFilesMap[activeFileName] ?: ""
                 currentCode = starter
                 triggerAutoSave(starter)
+              }
+            )
+            DropdownMenuItem(
+              text = { Text("Commit Version") },
+              leadingIcon = { Icon(Icons.Default.Save, contentDescription = null) },
+              onClick = {
+                showMoreMenu = false
+                saveCurrentFileNow()
+                showCommitDialog = true
+              }
+            )
+            DropdownMenuItem(
+              text = { Text("Version History") },
+              leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+              onClick = {
+                showMoreMenu = false
+                coroutineScope.launch {
+                  versionHistoryList = viewModel.getProjectVersions(projectId)
+                  showHistoryDialog = true
+                }
               }
             )
             DropdownMenuItem(
@@ -689,6 +730,82 @@ fun ProjectWorkspaceScreen(
         ) {
           Text("Discard & Exit")
         }
+      }
+    )
+  }
+
+  // Commit Dialog
+  if (showCommitDialog) {
+    var commitMsg by remember { mutableStateOf("") }
+    AlertDialog(
+      onDismissRequest = { showCommitDialog = false },
+      title = { Text("Commit Version") },
+      text = {
+        androidx.compose.material3.OutlinedTextField(
+          value = commitMsg,
+          onValueChange = { commitMsg = it },
+          label = { Text("Commit Message") },
+          modifier = Modifier.fillMaxWidth()
+        )
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            viewModel.commitProjectVersion(projectId, commitMsg.ifBlank { "Update version" }) {
+              showCommitDialog = false
+            }
+          }
+        ) {
+          Text("Commit")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showCommitDialog = false }) { Text("Cancel") }
+      }
+    )
+  }
+
+  // Version History Dialog
+  if (showHistoryDialog) {
+    AlertDialog(
+      onDismissRequest = { showHistoryDialog = false },
+      title = { Text("Version History") },
+      text = {
+        if (versionHistoryList.isEmpty()) {
+          Text("No commits yet.")
+        } else {
+          Column(
+            modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            versionHistoryList.forEach { v ->
+              Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+              ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                  Text("Version ${v.versionNumber}", fontWeight = FontWeight.Bold)
+                  Text(v.description, style = MaterialTheme.typography.bodyMedium)
+                  Spacer(modifier = Modifier.height(8.dp))
+                  OutlinedButton(
+                    onClick = {
+                      viewModel.restoreProjectVersion(projectId, v.versionNumber) {
+                        showHistoryDialog = false
+                        activeFileName = "main.py"
+                      }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                  ) {
+                    Text("Restore this version")
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      confirmButton = {
+        TextButton(onClick = { showHistoryDialog = false }) { Text("Close") }
       }
     )
   }

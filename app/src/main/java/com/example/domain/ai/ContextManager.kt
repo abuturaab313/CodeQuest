@@ -33,7 +33,7 @@ class ContextManager {
     // Remove internal system paths or long stack traces
     var clean = error.take(500)
     if (clean.contains("/data/data/") || clean.contains("/var/lib/")) {
-      clean = clean.replace(Regex("/[a-zA-Z0-9_/\\\\-\\.]+"), "[SYSTEM_PATH]")
+      clean = clean.replace(Regex("/[a-zA-Z0-9_/.\\-]+"), "[SYSTEM_PATH]")
     }
     return clean
   }

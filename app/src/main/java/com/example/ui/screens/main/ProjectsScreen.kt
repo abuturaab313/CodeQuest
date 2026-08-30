@@ -67,14 +67,20 @@ fun ProjectsScreen(
   modifier: Modifier = Modifier
 ) {
   var selectedFilter by remember { mutableStateOf("All") }
+  var selectedLanguageFilter by remember { mutableStateOf("All") }
 
-  val filteredProjects = remember(projects, selectedFilter) {
+  val filteredProjects = remember(projects, selectedFilter, selectedLanguageFilter) {
+    var list = projects
+    if (selectedLanguageFilter != "All") {
+      list = list.filter { it.language.equals(selectedLanguageFilter, ignoreCase = true) }
+    }
     when (selectedFilter) {
-      "In Progress" -> projects.filter { it.isUnlocked && !it.isCompleted }
-      "Completed" -> projects.filter { it.isCompleted }
-      "Beginner" -> projects.filter { it.difficulty.equals("Beginner", ignoreCase = true) }
-      "Intermediate" -> projects.filter { it.difficulty.equals("Intermediate", ignoreCase = true) }
-      else -> projects
+      "In Progress" -> list.filter { it.isUnlocked && !it.isCompleted }
+      "Completed" -> list.filter { it.isCompleted }
+      "Beginner" -> list.filter { it.difficulty.equals("Beginner", ignoreCase = true) }
+      "Intermediate" -> list.filter { it.difficulty.equals("Intermediate", ignoreCase = true) }
+      "Advanced" -> list.filter { it.difficulty.equals("Advanced", ignoreCase = true) }
+      else -> list
     }
   }
 
@@ -106,23 +112,47 @@ fun ProjectsScreen(
       }
     }
 
-    // Filter Chips
+    // Language and Status Filter Chips
     item {
-      LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-      ) {
-        val filters = listOf("All", "In Progress", "Completed", "Beginner", "Intermediate")
-        items(filters) { filter ->
-          FilterChip(
-            selected = selectedFilter == filter,
-            onClick = { selectedFilter = filter },
-            label = { Text(filter) },
-            colors = FilterChipDefaults.filterChipColors(
-              selectedContainerColor = QuestPrimaryContainer,
-              selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          val langFilters = listOf("All", "Python", "JavaScript", "Java", "C", "Cpp")
+          items(langFilters) { lang ->
+            val label = when (lang) {
+              "Cpp" -> "C++"
+              else -> lang
+            }
+            FilterChip(
+              selected = selectedLanguageFilter == lang,
+              onClick = { selectedLanguageFilter = lang },
+              label = { Text(label, fontWeight = FontWeight.SemiBold) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = QuestPrimary,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+              )
             )
-          )
+          }
+        }
+
+        LazyRow(
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          val filters = listOf("All", "In Progress", "Completed", "Beginner", "Intermediate", "Advanced")
+          items(filters) { filter ->
+            FilterChip(
+              selected = selectedFilter == filter,
+              onClick = { selectedFilter = filter },
+              label = { Text(filter) },
+              colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = QuestPrimaryContainer,
+                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+              )
+            )
+          }
         }
       }
     }
@@ -194,6 +224,22 @@ private fun ProjectCard(
         verticalAlignment = Alignment.CenterVertically
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+          Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = QuestPrimary.copy(alpha = 0.15f)
+          ) {
+            Text(
+              text = project.language.uppercase(),
+              style = MaterialTheme.typography.labelSmall.copy(
+                color = QuestPrimary,
+                fontWeight = FontWeight.Black
+              ),
+              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+          }
+
+          Spacer(modifier = Modifier.width(6.dp))
+
           Box(
             modifier = Modifier
               .clip(RoundedCornerShape(8.dp))

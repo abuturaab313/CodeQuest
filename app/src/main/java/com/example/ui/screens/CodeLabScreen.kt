@@ -461,6 +461,50 @@ fun CodeLabScreen(
       }
     )
   }
+
+  if (showUnsavedChangesDialog) {
+    val targetLangName = pendingLanguageSwitchId?.let { LanguageRegistry.getLanguage(it).name } ?: "selected language"
+    AlertDialog(
+      onDismissRequest = { showUnsavedChangesDialog = false },
+      title = { Text("UNSAVED CHANGES") },
+      text = { Text("You have unsaved changes in your current code. Would you like to save them as a draft before switching to $targetLangName?") },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showUnsavedChangesDialog = false
+            val langToSwitch = pendingLanguageSwitchId
+            if (langToSwitch != null) {
+              viewModel.saveChallengeDraft(challengeId, userCode, hintsUnlockedCount)
+              selectedLanguageId = langToSwitch
+              userCode = LanguageRegistry.getLanguage(langToSwitch).starterTemplate
+            }
+          }
+        ) {
+          Text("SAVE")
+        }
+      },
+      dismissButton = {
+        Row {
+          TextButton(
+            onClick = {
+              showUnsavedChangesDialog = false
+              val langToSwitch = pendingLanguageSwitchId
+              if (langToSwitch != null) {
+                selectedLanguageId = langToSwitch
+                userCode = LanguageRegistry.getLanguage(langToSwitch).starterTemplate
+              }
+            }
+          ) {
+            Text("DISCARD", color = MaterialTheme.colorScheme.error)
+          }
+          Spacer(modifier = Modifier.width(8.dp))
+          TextButton(onClick = { showUnsavedChangesDialog = false }) {
+            Text("CANCEL")
+          }
+        }
+      }
+    )
+  }
 }
 
 @Composable

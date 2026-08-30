@@ -45,8 +45,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   private val database = CodeQuestDatabase.getDatabase(application)
   val repository = CodeQuestRepository(database)
   val projectRepository = com.example.data.repository.ProjectRepository(database, repository)
+  val devLabRepository = com.example.data.repository.DevLabRepository(database.devLabDao())
   private val authRepository = AuthRepository(database.userDao())
   val aiService get() = repository.aiService
+
+  // Developer Lab StateFlows
+  val bugHunts = devLabRepository.getAllBugHunts()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val testFirstChallenges = devLabRepository.getAllTestFirstChallenges()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val gitExercises = devLabRepository.getAllGitExercises()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val codeReviews = devLabRepository.getAllCodeReviews()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val portfolioItems = devLabRepository.getAllPortfolioItems()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val developerStats = devLabRepository.getDeveloperStats()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
   init {
     viewModelScope.launch {
@@ -424,6 +444,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
   }
 
+  fun createCustomProject(
+    title: String,
+    description: String,
+    language: String,
+    template: String,
+    difficulty: String,
+    readmeContent: String,
+    onSuccess: (ProjectEntity) -> Unit
+  ) {
+    viewModelScope.launch {
+      val project = projectRepository.createCustomProject(
+        title = title,
+        description = description,
+        language = language,
+        template = template,
+        difficulty = difficulty,
+        readmeContent = readmeContent
+      )
+      onSuccess(project)
+    }
+  }
+
   fun updateSettings(sound: Boolean, haptics: Boolean, dark: Boolean, reducedMotion: Boolean) {
     viewModelScope.launch {
       repository.updateSettings(sound, haptics, dark, reducedMotion)
@@ -494,6 +536,95 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
   fun resetAllProgress() {
     viewModelScope.launch {
       repository.resetAllProgress()
+    }
+  }
+
+  // DevLab Completion Methods
+  fun completeBugHunt(id: String, xp: Int, coins: Int) {
+    viewModelScope.launch {
+      devLabRepository.completeBugHunt(id)
+      val levelUpResult = repository.awardBonusXpAndCoins(xp, coins)
+      if (levelUpResult != null && levelUpResult.didLevelUp) {
+        activeLevelUp.value = levelUpResult
+      } else {
+        activeReward.value = GamificationReward.XpReward(xp, "Bug Fixed!")
+      }
+    }
+  }
+
+  fun completeTestFirst(id: String, xp: Int, coins: Int) {
+    viewModelScope.launch {
+      devLabRepository.completeTestFirst(id)
+      val levelUpResult = repository.awardBonusXpAndCoins(xp, coins)
+      if (levelUpResult != null && levelUpResult.didLevelUp) {
+        activeLevelUp.value = levelUpResult
+      } else {
+        activeReward.value = GamificationReward.XpReward(xp, "TDD Challenge Complete!")
+      }
+    }
+  }
+
+  fun completeGitExercise(id: String, xp: Int, coins: Int, isCommit: Boolean = false, isBranch: Boolean = false, isConflict: Boolean = false) {
+    viewModelScope.launch {
+      devLabRepository.completeGitExercise(id, isCommit, isBranch, isConflict)
+      val levelUpResult = repository.awardBonusXpAndCoins(xp, coins)
+      if (levelUpResult != null && levelUpResult.didLevelUp) {
+        activeLevelUp.value = levelUpResult
+      } else {
+        activeReward.value = GamificationReward.XpReward(xp, "Git Exercise Complete!")
+      }
+    }
+  }
+
+  fun completeCodeReview(id: String, isRefactor: Boolean, xp: Int, coins: Int) {
+    viewModelScope.launch {
+      devLabRepository.completeCodeReview(id, isRefactor)
+      val levelUpResult = repository.awardBonusXpAndCoins(xp, coins)
+      if (levelUpResult != null && levelUpResult.didLevelUp) {
+        activeLevelUp.value = levelUpResult
+      } else {
+        activeReward.value = GamificationReward.XpReward(xp, if (isRefactor) "Refactor Complete!" else "Code Review Approved!")
+      }
+    }
+  }
+
+  fun savePortfolioItem(item: com.example.data.models.PortfolioItemEntity) {
+    viewModelScope.launch {
+      devLabRepository.savePortfolioItem(item)
+    }
+  }
+
+  fun updatePortfolioVisibility(id: String, isPublic: Boolean) {
+    viewModelScope.launch {
+      devLabRepository.updatePortfolioVisibility(id, isPublic)
+    }
+  }
+
+  fun toggleProjectPortfolio(projectId: String, isPortfolio: Boolean) {
+    viewModelScope.launch {
+      projectRepository.toggleProjectPortfolio(projectId, isPortfolio)
+    }
+  }
+
+  fun commitProjectVersion(projectId: String, message: String, onComplete: () -> Unit) {
+    viewModelScope.launch {
+      projectRepository.commitProjectVersion(projectId, message)
+      onComplete()
+    }
+  }
+
+  suspend fun getProjectVersions(projectId: String) = projectRepository.getProjectVersions(projectId)
+
+  fun restoreProjectVersion(projectId: String, versionNumber: Int, onComplete: () -> Unit) {
+    viewModelScope.launch {
+      projectRepository.restoreProjectVersion(projectId, versionNumber)
+      onComplete()
+    }
+  }
+
+  fun updatePortfolioReadme(id: String, readme: String) {
+    viewModelScope.launch {
+      devLabRepository.updatePortfolioReadme(id, readme)
     }
   }
 }

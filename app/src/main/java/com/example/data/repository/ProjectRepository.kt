@@ -42,11 +42,99 @@ class ProjectRepository(
   fun getAllProjects(): Flow<List<ProjectEntity>> =
     projectDao.getAllProjects()
 
+  suspend fun createCustomProject(
+    title: String,
+    description: String,
+    language: String,
+    template: String,
+    difficulty: String,
+    readmeContent: String
+  ): ProjectEntity {
+    val projectId = "custom_project_${System.currentTimeMillis()}"
+    val starterFiles = mutableMapOf<String, String>()
+    
+    when (template) {
+      "BLANK" -> {
+        starterFiles["main.py"] = "# main.py\n\nprint('Hello, Custom Project!')\n"
+      }
+      "CLI" -> {
+        starterFiles["main.py"] = "import sys\n\ndef main():\n    print('CLI Application Started')\n    print(f'Arguments: {sys.argv}')\n\nif __name__ == '__main__':\n    main()\n"
+        starterFiles["utils.py"] = "def helper():\n    return 'Helper function'\n"
+      }
+      "PACKAGE" -> {
+        starterFiles["main.py"] = "from my_package import core\n\nprint(core.run())\n"
+        starterFiles["my_package/core.py"] = "def run():\n    return 'Package running'\n"
+        starterFiles["my_package/__init__.py"] = ""
+      }
+      "TESTING" -> {
+        starterFiles["main.py"] = "def add(a, b):\n    return a + b\n"
+        starterFiles["test_main.py"] = "from main import add\n\ndef test_add():\n    assert add(2, 2) == 4\n    print('All tests passed')\n\nif __name__ == '__main__':\n    test_add()\n"
+      }
+      "AUTOMATION" -> {
+        starterFiles["main.py"] = "import os\n\ndef process_files():\n    print('Processing...')\n\nif __name__ == '__main__':\n    process_files()\n"
+      }
+      "DATA" -> {
+        starterFiles["main.py"] = "import json\n\ndef analyze():\n    data = {'key': 'value'}\n    print(json.dumps(data, indent=2))\n\nif __name__ == '__main__':\n    analyze()\n"
+      }
+      "GAME" -> {
+        starterFiles["main.py"] = "def game_loop():\n    print('Game Over')\n\nif __name__ == '__main__':\n    game_loop()\n"
+      }
+      else -> {
+        starterFiles["main.py"] = "# main.py\n"
+      }
+    }
+    starterFiles["README.md"] = readmeContent
+
+    val project = ProjectEntity(
+      id = projectId,
+      title = title,
+      language = language,
+      difficulty = difficulty,
+      description = description,
+      instructions = "",
+      starterFilesJson = org.json.JSONObject(starterFiles as Map<*, *>).toString(),
+      isCustom = true,
+      projectType = template
+    )
+    
+    projectDao.insertProject(project)
+    
+    // Initialize files and progress
+    val fileEntities = starterFiles.map { (name, content) ->
+      ProjectFileEntity(
+        projectId = project.id,
+        fileName = name,
+        fileContent = content,
+        isMain = name == "main.py" || name == "index.js",
+        isReadOnly = false,
+        lastModifiedEpochMs = System.currentTimeMillis()
+      )
+    }
+    projectDao.insertFiles(fileEntities)
+          
+    val initialProgress = ProjectProgressEntity(
+      projectId = project.id,
+      activeFileName = if (starterFiles.containsKey("main.py")) "main.py" else starterFiles.keys.firstOrNull() ?: "main.py",
+      completedTaskIdsJson = "[]",
+      isCompleted = project.isCompleted,
+      attemptsCount = 0,
+      hintsUsedCount = 0,
+      lastUpdatedEpochMs = System.currentTimeMillis()
+    )
+    projectDao.saveProjectProgress(initialProgress)
+    
+    return project
+  }
+
   suspend fun getProjectById(projectId: String): ProjectEntity? =
     projectDao.getProjectById(projectId)
 
   fun observeProjectById(projectId: String): Flow<ProjectEntity?> =
     projectDao.observeProjectById(projectId)
+
+  suspend fun toggleProjectPortfolio(projectId: String, isPortfolio: Boolean) {
+    projectDao.setProjectPortfolio(projectId, isPortfolio)
+  }
 
   fun getFilesForProject(projectId: String): Flow<List<ProjectFileEntity>> =
     projectDao.getFilesForProject(projectId)
@@ -144,6 +232,43 @@ class ProjectRepository(
     if (fileName == "main.py") return false // Protected entry point
     projectDao.deleteFile(projectId, fileName)
     return true
+  }
+
+  suspend fun commitProjectVersion(projectId: String, description: String) {
+    val filesList = projectDao.getFilesForProjectOnce(projectId)
+    val filesMap = filesList.associate { it.fileName to it.fileContent }
+    val latestVersion = projectDao.getLatestVersionNumber(projectId) ?: 0
+    
+    val version = com.example.data.models.ProjectVersionEntity(
+      projectId = projectId,
+      versionNumber = latestVersion + 1,
+      timestampEpochMs = System.currentTimeMillis(),
+      description = description,
+      filesJson = org.json.JSONObject(filesMap as Map<*, *>).toString()
+    )
+    projectDao.insertProjectVersion(version)
+  }
+
+  suspend fun getProjectVersions(projectId: String): List<com.example.data.models.ProjectVersionEntity> {
+    return projectDao.getProjectVersions(projectId)
+  }
+
+  suspend fun restoreProjectVersion(projectId: String, versionNumber: Int) {
+    val versions = projectDao.getProjectVersions(projectId)
+    val targetVersion = versions.find { it.versionNumber == versionNumber } ?: return
+    
+    try {
+      val obj = org.json.JSONObject(targetVersion.filesJson)
+      val starterMap = mutableMapOf<String, String>()
+      val keys = obj.keys()
+      while (keys.hasNext()) {
+        val k = keys.next()
+        starterMap[k] = obj.getString(k)
+      }
+      projectDao.resetProjectToStarterFiles(projectId, starterMap)
+    } catch (e: Exception) {
+      // Ignored
+    }
   }
 
   suspend fun resetSingleFile(projectId: String, fileName: String, starterContent: String) {

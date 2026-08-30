@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import com.example.data.models.LessonEntity
 import com.example.data.models.LessonType
 import com.example.data.models.WorldEntity
+import com.example.domain.languages.LanguageDefinition
+import com.example.domain.languages.LanguageRegistry
 import com.example.ui.components.GameCard
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
@@ -52,18 +54,32 @@ fun LearnScreen(
 ) {
   val coroutineScope = rememberCoroutineScope()
   var lockedNoticeMessage by remember { mutableStateOf<String?>(null) }
+  var showConceptComparisonDialog by remember { mutableStateOf(false) }
   
+  // Active course language selection
+  var selectedLanguageId by remember { mutableStateOf("python") }
+  
+  // Filtered worlds for the active course
+  val courseWorlds = remember(worlds, selectedLanguageId) {
+    val filtered = worlds.filter { it.courseId == selectedLanguageId }.sortedBy { it.worldNumber }
+    if (filtered.isNotEmpty()) filtered else worlds.sortedBy { it.worldNumber }
+  }
+
   // Track selected world id
-  var selectedWorldId by remember { mutableStateOf("py_w1") }
+  var selectedWorldId by remember(courseWorlds) {
+    mutableStateOf(courseWorlds.firstOrNull()?.id ?: "py_w1")
+  }
   
   // Set default selection to first unlocked, uncompleted world if available
-  LaunchedEffect(worlds, lessons) {
-    val firstUncompletedWorld = worlds.sortedBy { it.worldNumber }
+  LaunchedEffect(courseWorlds, lessons) {
+    val firstUncompletedWorld = courseWorlds
       .firstOrNull { world ->
         world.isUnlocked && lessons.filter { it.worldId == world.id }.any { !it.isCompleted }
       }
     if (firstUncompletedWorld != null) {
       selectedWorldId = firstUncompletedWorld.id
+    } else if (courseWorlds.isNotEmpty()) {
+      selectedWorldId = courseWorlds.first().id
     }
   }
 
@@ -78,14 +94,12 @@ fun LearnScreen(
     if (firstUnlockedUncompleted != -1) {
       firstUnlockedUncompleted
     } else {
-      // default to first lesson if none, or last completed
       0
     }
   }
 
   LaunchedEffect(selectedWorldId, recommendedIndex) {
     if (worldLessons.isNotEmpty() && recommendedIndex > 0) {
-      // scroll to the recommended node (offset by header items: title card + selector card + spacing = index + 3)
       coroutineScope.launch {
         delay(150)
         mapListState.animateScrollToItem((recommendedIndex + 2).coerceIn(0, worldLessons.size + 3))
@@ -106,23 +120,83 @@ fun LearnScreen(
       modifier = Modifier.fillMaxSize(),
       contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-      // Top Title Bar
+      // Top Title Bar with Compare Languages Action
       item {
         Column(
           modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "Learning Quest Map",
+                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
+                color = MaterialTheme.colorScheme.onBackground
+              )
+              Text(
+                text = "Conquer levels, defeat language bosses, and build production software!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+            }
+
+            FilledTonalButton(
+              onClick = { showConceptComparisonDialog = true },
+              shape = RoundedCornerShape(10.dp),
+              colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = QuestPrimary.copy(alpha = 0.15f),
+                contentColor = QuestPrimary
+              ),
+              modifier = Modifier.padding(start = 8.dp)
+            ) {
+              Icon(Icons.Default.CompareArrows, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("Compare", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+          }
+        }
+      }
+
+      // Language Switcher Selector
+      item {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
           Text(
-            text = "Learning Quest Map",
-            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
-            color = MaterialTheme.colorScheme.onBackground
+            text = "SELECT LANGUAGE TRACK",
+            style = MaterialTheme.typography.labelMedium.copy(
+              fontWeight = FontWeight.Black,
+              letterSpacing = 1.2.sp
+            ),
+            color = QuestPrimary
           )
-          Text(
-            text = "Embark on your offline coding quest. Complete levels, conquer boss battles, and build production projects!",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-          )
+          Spacer(modifier = Modifier.height(6.dp))
+          LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            val languages = com.example.domain.languages.LanguageRegistry.SUPPORTED_LANGUAGES
+            items(languages) { lang ->
+              val isSelected = selectedLanguageId == lang.id
+              FilterChip(
+                selected = isSelected,
+                onClick = { selectedLanguageId = lang.id },
+                label = {
+                  Text(
+                    text = "${lang.icon} ${lang.name}",
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                  )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                  selectedContainerColor = QuestPrimary,
+                  selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+              )
+            }
+          }
         }
       }
 
@@ -135,16 +209,16 @@ fun LearnScreen(
             letterSpacing = 1.2.sp
           ),
           color = QuestPrimary,
-          modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+          modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
         LazyRow(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
           contentPadding = PaddingValues(horizontal = 16.dp),
           horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-          items(worlds.sortedBy { it.worldNumber }) { world ->
+          items(courseWorlds) { world ->
             val isSelected = world.id == selectedWorldId
             val lessonsInWorld = lessons.filter { it.worldId == world.id }
             val completedInWorld = lessonsInWorld.count { it.isCompleted }
@@ -324,6 +398,12 @@ fun LearnScreen(
           }
         }
       }
+    }
+
+    if (showConceptComparisonDialog) {
+      com.example.ui.components.ConceptComparisonDialog(
+        onDismiss = { showConceptComparisonDialog = false }
+      )
     }
   }
 }

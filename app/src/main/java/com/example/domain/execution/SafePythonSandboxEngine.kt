@@ -883,6 +883,26 @@ class SafePythonSandboxEngine {
 
       val methodName = callPart.substring(0, openP).trim()
       val argsStr = callPart.substring(openP + 1, closeP).trim()
+
+      // Check if it's a module function call like operations.add()
+      val moduleFunc = functions["$targetExpr.$methodName"] ?: functions[methodName]
+      if (moduleFunc != null && !variables.containsKey(targetExpr)) {
+        val argStrs = splitArguments(argsStr)
+        val argVals = argStrs.map { evaluateExpression(it, lineNum) }
+        val nestedEnv = SandboxEnvironment(inputQueue, stdout, options, workspaceFiles, engine)
+        nestedEnv.variables.putAll(variables)
+        nestedEnv.functions.putAll(functions)
+        for (i in 0 until minOf(moduleFunc.params.size, argVals.size)) {
+          nestedEnv.variables[moduleFunc.params[i]] = argVals[i]
+        }
+        try {
+          nestedEnv.executeBlock(moduleFunc.body)
+          return null
+        } catch (ret: ControlFlowReturn) {
+          return ret.value
+        }
+      }
+
       val args = splitArguments(argsStr).map { evaluateExpression(it, lineNum) }
       val targetObj = evaluateExpression(targetExpr, lineNum)
 

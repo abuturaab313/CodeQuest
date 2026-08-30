@@ -18,17 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,14 +50,7 @@ import com.example.data.models.UserEntity
 import com.example.ui.components.GameButton
 import com.example.ui.components.GameButtonStyle
 import com.example.ui.components.GameCard
-import com.example.ui.theme.QuestPrimary
-import com.example.ui.theme.QuestPrimaryDark
-import com.example.ui.theme.QuestPrimaryLight
-import com.example.ui.theme.QuestSecondary
-import com.example.ui.theme.QuestSuccess
-import com.example.ui.theme.StreakFlame
-import com.example.ui.theme.XpGold
-import com.example.ui.theme.QuestGold
+import com.example.ui.theme.*
 import com.example.data.models.UnlockedCosmeticEntity
 
 @Composable
@@ -77,7 +60,8 @@ fun ProfileScreen(
   skills: List<SkillMasteryEntity>,
   onUpgradeAccount: (email: String, username: String) -> Unit,
   modifier: Modifier = Modifier,
-  unlockedCosmetics: List<UnlockedCosmeticEntity> = emptyList()
+  unlockedCosmetics: List<UnlockedCosmeticEntity> = emptyList(),
+  developerStats: com.example.data.models.DeveloperStatsEntity? = null
 ) {
   var showUpgradeDialog by remember { mutableStateOf(false) }
 
@@ -95,6 +79,16 @@ fun ProfileScreen(
         unlockedCosmetics = unlockedCosmetics,
         onUpgradeClick = { showUpgradeDialog = true }
       )
+    }
+
+    item {
+      // Developer Journey Summary Card
+      DeveloperJourneyCard(stats = developerStats)
+    }
+
+    item {
+      // Language Progress Breakdown
+      LanguageBreakdownCard(skills = skills, totalXp = user?.xp ?: 0)
     }
 
     item {
@@ -458,4 +452,193 @@ private fun UpgradeAccountDialog(
       }
     }
   )
+}
+
+@Composable
+private fun LanguageBreakdownCard(
+  skills: List<com.example.data.models.SkillMasteryEntity>,
+  totalXp: Int
+) {
+  val languages = listOf(
+    Triple("python", "Python", Color(0xFF3572A5)),
+    Triple("javascript", "JavaScript", Color(0xFFF7DF1E)),
+    Triple("java", "Java", Color(0xFFB07219)),
+    Triple("c", "C", Color(0xFF555555)),
+    Triple("cpp", "C++", Color(0xFFF34B7D))
+  )
+
+  GameCard(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.padding(16.dp)) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(
+            imageVector = Icons.Default.Code,
+            contentDescription = null,
+            tint = QuestPrimary,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Language Fluency",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+          )
+        }
+        Text(
+          text = "$totalXp Total XP",
+          style = MaterialTheme.typography.labelMedium.copy(color = XpGold, fontWeight = FontWeight.Bold)
+        )
+      }
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      languages.forEach { (langId, langName, langColor) ->
+        val langSkills = skills.filter { it.language.equals(langId, ignoreCase = true) }
+        val avgMastery = if (langSkills.isNotEmpty()) {
+          langSkills.map { it.masteryPercentage }.average().toInt()
+        } else {
+          0
+        }
+
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Box(
+                modifier = Modifier
+                  .size(10.dp)
+                  .clip(CircleShape)
+                  .background(langColor)
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = langName,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+              )
+            }
+            Text(
+              text = "$avgMastery% Fluency",
+              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+              color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+          }
+
+          Spacer(modifier = Modifier.height(4.dp))
+
+          LinearProgressIndicator(
+            progress = { (avgMastery / 100f).coerceIn(0f, 1f) },
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(6.dp)
+              .clip(RoundedCornerShape(3.dp)),
+            color = langColor,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun DeveloperJourneyCard(
+  stats: com.example.data.models.DeveloperStatsEntity?
+) {
+  GameCard(borderColor = QuestPrimary.copy(alpha = 0.3f)) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(16.dp)
+    ) {
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(
+            imageVector = Icons.Default.WorkspacePremium,
+            contentDescription = null,
+            tint = QuestGold,
+            modifier = Modifier.size(20.dp)
+          )
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "Developer Lab Journey",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+          )
+        }
+        Text(
+          text = "Real-World Skills",
+          style = MaterialTheme.typography.labelSmall.copy(color = QuestCyan, fontWeight = FontWeight.Bold)
+        )
+      }
+
+      Spacer(modifier = Modifier.height(14.dp))
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceAround
+      ) {
+        DevStatMini(
+          label = "Bugs Fixed",
+          value = "${stats?.bugsFixedCount ?: 0}",
+          icon = Icons.Default.BugReport,
+          tint = com.example.ui.theme.QuestRed
+        )
+        DevStatMini(
+          label = "Tests Written",
+          value = "${stats?.testsPassedCount ?: 0}",
+          icon = Icons.Default.TaskAlt,
+          tint = com.example.ui.theme.QuestGreen
+        )
+        DevStatMini(
+          label = "Git Commits",
+          value = "${stats?.commitsCreatedCount ?: 0}",
+          icon = Icons.Default.CallSplit,
+          tint = QuestCyan
+        )
+        DevStatMini(
+          label = "Code Reviews",
+          value = "${stats?.codeReviewsCompleted ?: 0}",
+          icon = Icons.Default.RateReview,
+          tint = QuestPrimary
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun DevStatMini(
+  label: String,
+  value: String,
+  icon: androidx.compose.ui.graphics.vector.ImageVector,
+  tint: Color
+) {
+  Column(
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    Box(
+      modifier = Modifier
+        .size(36.dp)
+        .clip(CircleShape)
+        .background(tint.copy(alpha = 0.15f)),
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+    }
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(value, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+    Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, color = Color.Gray))
+  }
 }

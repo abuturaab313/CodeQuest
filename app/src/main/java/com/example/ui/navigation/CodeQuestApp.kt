@@ -50,6 +50,18 @@ import com.example.ui.screens.main.ProfileScreen
 import com.example.ui.screens.main.ProjectsScreen
 import com.example.ui.screens.onboarding.OnboardingScreen
 import com.example.ui.screens.project.ProjectWorkspaceScreen
+import com.example.ui.screens.devlab.DeveloperLabScreen
+import com.example.ui.screens.devlab.BugHuntScreen
+import com.example.ui.screens.devlab.GitLabScreen
+import com.example.ui.screens.devlab.TestFirstScreen
+import com.example.ui.screens.devlab.CodeReviewScreen
+import com.example.ui.screens.devlab.ReadmeBuilderScreen
+import com.example.ui.screens.devlab.PortfolioScreen
+import com.example.data.models.BugHuntEntity
+import com.example.data.models.GitExerciseEntity
+import com.example.data.models.TestFirstChallengeEntity
+import com.example.data.models.CodeReviewEntity
+import com.example.data.models.PortfolioItemEntity
 import com.example.ui.theme.QuestPrimary
 import com.example.ui.theme.QuestPrimaryContainer
 import kotlinx.coroutines.launch
@@ -58,7 +70,7 @@ enum class MainTab(val title: String, val icon: ImageVector, val tag: String) {
   HOME("Home", Icons.Default.Home, "nav_tab_home"),
   LEARN("Learn", Icons.Default.Explore, "nav_tab_learn"),
   PRACTICE("Practice", Icons.Default.AutoAwesome, "nav_tab_practice"),
-  PROJECTS("Projects", Icons.Default.Science, "nav_tab_projects"),
+  PROJECTS("Dev Lab", Icons.Default.Science, "nav_tab_projects"),
   PROFILE("Profile", Icons.Default.Person, "nav_tab_profile")
 }
 
@@ -80,6 +92,14 @@ fun CodeQuestApp(
   val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
   val dailyPracticeState by viewModel.dailyPracticeState.collectAsStateWithLifecycle()
   val learnerMemories by viewModel.learnerMemories.collectAsStateWithLifecycle()
+
+  // Milestone 11 DevLab flows
+  val bugHunts by viewModel.bugHunts.collectAsStateWithLifecycle()
+  val testFirstChallenges by viewModel.testFirstChallenges.collectAsStateWithLifecycle()
+  val gitExercises by viewModel.gitExercises.collectAsStateWithLifecycle()
+  val codeReviews by viewModel.codeReviews.collectAsStateWithLifecycle()
+  val portfolioItems by viewModel.portfolioItems.collectAsStateWithLifecycle()
+  val developerStats by viewModel.developerStats.collectAsStateWithLifecycle()
 
   // Milestone 7 flows
   val weeklyEvents by viewModel.weeklyEvents.collectAsStateWithLifecycle()
@@ -109,8 +129,120 @@ fun CodeQuestApp(
   var activeLessonProgress by remember { mutableStateOf<com.example.data.models.LessonProgressEntity?>(null) }
   var activeChallengeId by remember { mutableStateOf<String?>(null) }
   var activeProjectId by remember { mutableStateOf<String?>(null) }
+  var showCreateProjectScreen by remember { mutableStateOf(false) }
+
+  // Milestone 11 Active Navigation States
+  var activeBugHunt by remember { mutableStateOf<BugHuntEntity?>(null) }
+  var activeGitExercise by remember { mutableStateOf<GitExerciseEntity?>(null) }
+  var activeTestFirstChallenge by remember { mutableStateOf<TestFirstChallengeEntity?>(null) }
+  var activeCodeReview by remember { mutableStateOf<CodeReviewEntity?>(null) }
+  var showReadmeBuilder by remember { mutableStateOf(false) }
+  var readmeTargetProjectName by remember { mutableStateOf("My Real-World Project") }
+  var showPortfolioScreen by remember { mutableStateOf(false) }
 
   val coroutineScope = rememberCoroutineScope()
+
+  // Bug Hunt Screen
+  if (activeBugHunt != null) {
+    BugHuntScreen(
+      bugHunt = activeBugHunt!!,
+      onNavigateBack = { activeBugHunt = null },
+      onComplete = { xp, coins ->
+        viewModel.completeBugHunt(activeBugHunt!!.id, xp, coins)
+        activeBugHunt = null
+      }
+    )
+    return
+  }
+
+  // Git Lab Screen
+  if (activeGitExercise != null) {
+    GitLabScreen(
+      exercise = activeGitExercise!!,
+      onNavigateBack = { activeGitExercise = null },
+      onComplete = { xp, coins ->
+        val ex = activeGitExercise!!
+        viewModel.completeGitExercise(
+          id = ex.id,
+          xp = xp,
+          coins = coins,
+          isCommit = ex.expectedAction == "COMMIT" || ex.expectedAction == "BOSS",
+          isBranch = ex.expectedAction == "BRANCH" || ex.expectedAction == "BOSS",
+          isConflict = ex.expectedAction == "RESOLVE_CONFLICT" || ex.expectedAction == "BOSS"
+        )
+        activeGitExercise = null
+      }
+    )
+    return
+  }
+
+  // Test First Screen
+  if (activeTestFirstChallenge != null) {
+    TestFirstScreen(
+      challenge = activeTestFirstChallenge!!,
+      onNavigateBack = { activeTestFirstChallenge = null },
+      onComplete = { xp, coins ->
+        viewModel.completeTestFirst(activeTestFirstChallenge!!.id, xp, coins)
+        activeTestFirstChallenge = null
+      }
+    )
+    return
+  }
+
+  // Code Review Screen
+  if (activeCodeReview != null) {
+    CodeReviewScreen(
+      review = activeCodeReview!!,
+      onNavigateBack = { activeCodeReview = null },
+      onComplete = { xp, coins ->
+        viewModel.completeCodeReview(activeCodeReview!!.id, activeCodeReview!!.isRefactorChallenge, xp, coins)
+        activeCodeReview = null
+      }
+    )
+    return
+  }
+
+  // README Builder Screen
+  if (showReadmeBuilder) {
+    ReadmeBuilderScreen(
+      initialProjectName = readmeTargetProjectName,
+      onNavigateBack = { showReadmeBuilder = false },
+      onSaveReadme = { _ ->
+        showReadmeBuilder = false
+      }
+    )
+    return
+  }
+
+  // Portfolio Screen
+  if (showPortfolioScreen) {
+    PortfolioScreen(
+      portfolioItems = portfolioItems,
+      onToggleVisibility = { id, isPublic ->
+        viewModel.updatePortfolioVisibility(id, isPublic)
+      },
+      onOpenReadmeBuilder = { item ->
+        readmeTargetProjectName = item.title
+        showReadmeBuilder = true
+      },
+      onNavigateBack = { showPortfolioScreen = false }
+    )
+    return
+  }
+
+  // Create Project Screen
+  if (showCreateProjectScreen) {
+    com.example.ui.screens.project.CreateProjectScreen(
+      onNavigateBack = { showCreateProjectScreen = false },
+      onCreateProject = { title, desc, lang, template, diff, readme ->
+        viewModel.createCustomProject(title, desc, lang, template, diff, readme) { newProject ->
+          showCreateProjectScreen = false
+          activeProjectId = newProject.id
+        }
+      }
+    )
+    return
+  }
 
   // Level Up Modal
   if (activeLevelUp != null) {
@@ -417,10 +549,24 @@ fun CodeQuestApp(
           onClaimWeeklyDailyReward = { dayIndex -> viewModel.claimDailyReward(dayIndex) }
         )
 
-        MainTab.PROJECTS -> ProjectsScreen(
+        MainTab.PROJECTS -> DeveloperLabScreen(
+          bugHunts = bugHunts,
+          testFirstChallenges = testFirstChallenges,
+          gitExercises = gitExercises,
+          codeReviews = codeReviews,
           projects = projects,
-          onOpenProject = { project ->
-            activeProjectId = project.id
+          portfolioItems = portfolioItems,
+          stats = developerStats,
+          onOpenBugHunt = { hunt -> activeBugHunt = hunt },
+          onOpenTestFirst = { challenge -> activeTestFirstChallenge = challenge },
+          onOpenGitLab = { ex -> activeGitExercise = ex },
+          onOpenCodeReview = { review -> activeCodeReview = review },
+          onOpenProject = { project -> activeProjectId = project.id },
+          onCreateNewProject = { showCreateProjectScreen = true },
+          onOpenPortfolio = { showPortfolioScreen = true },
+          onOpenReadmeBuilder = { project ->
+            readmeTargetProjectName = project?.title ?: "My Real-World Project"
+            showReadmeBuilder = true
           }
         )
 
@@ -431,7 +577,8 @@ fun CodeQuestApp(
           onUpgradeAccount = { email, username ->
             viewModel.upgradeAccount(email, username)
           },
-          unlockedCosmetics = unlockedCosmetics
+          unlockedCosmetics = unlockedCosmetics,
+          developerStats = developerStats
         )
       }
 

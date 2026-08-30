@@ -266,3 +266,22 @@ class JavaScriptRuntime : BaseLanguageRuntime("javascript")
 class JavaRuntime : BaseLanguageRuntime("java")
 class CRuntime : BaseLanguageRuntime("c")
 class CppRuntime : BaseLanguageRuntime("cpp")
+
+object LanguageRuntimeFactory {
+  private val pythonRuntime = PythonRuntime()
+  private val jsRuntime = JavaScriptRuntime()
+  private val javaRuntime = JavaRuntime()
+  private val cRuntime = CRuntime()
+  private val cppRuntime = CppRuntime()
+
+  fun getRuntime(languageId: String): CodeRuntime {
+    return when (languageId.lowercase()) {
+      "javascript", "js" -> jsRuntime
+      "java" -> javaRuntime
+      "c" -> cRuntime
+      "cpp", "c++" -> cppRuntime
+      else -> pythonRuntime
+    }
+  }
+}
+

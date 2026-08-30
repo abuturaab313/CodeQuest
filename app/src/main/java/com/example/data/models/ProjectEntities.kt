@@ -65,7 +65,10 @@ data class ProjectEntity(
   val completionCriteria: String = "Pass all project requirements and test cases",
   val isUnlocked: Boolean = true,
   val isCompleted: Boolean = false,
-  val completedAtEpochMs: Long = 0L
+  val completedAtEpochMs: Long = 0L,
+  val isCustom: Boolean = false,
+  val isPortfolio: Boolean = false,
+  val projectType: String = "CURRICULUM" // CURRICULUM, BLANK, CLI, PACKAGE, WEB, AUTOMATION, DATA, API, GAME, SCRIPT, TESTING
 ) {
   fun parseSkills(): List<String> {
     return try {

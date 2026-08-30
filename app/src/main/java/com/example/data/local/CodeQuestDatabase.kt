@@ -34,9 +34,20 @@ import com.example.data.models.DailyRewardClaimEntity
 import com.example.data.models.ReviewQueueEntity
 import com.example.data.models.BookmarkEntity
 import com.example.data.models.LessonNoteEntity
+import com.example.data.models.BugHuntEntity
+import com.example.data.models.TestFirstChallengeEntity
+import com.example.data.models.GitExerciseEntity
+import com.example.data.models.CodeReviewEntity
+import com.example.data.models.ProjectIssueEntity
+import com.example.data.models.PortfolioItemEntity
+import com.example.data.models.ProjectVersionEntity
+import com.example.data.models.UnsavedRecoveryEntity
+import com.example.data.models.DeveloperStatsEntity
 import com.example.data.local.ReviewQueueDao
 import com.example.data.local.BookmarkDao
 import com.example.data.local.LessonNoteDao
+import com.example.data.local.DevLabDao
+import com.example.data.local.DevLabData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -70,9 +81,18 @@ import kotlinx.coroutines.launch
     DailyRewardClaimEntity::class,
     ReviewQueueEntity::class,
     BookmarkEntity::class,
-    LessonNoteEntity::class
+    LessonNoteEntity::class,
+    BugHuntEntity::class,
+    TestFirstChallengeEntity::class,
+    GitExerciseEntity::class,
+    CodeReviewEntity::class,
+    ProjectIssueEntity::class,
+    PortfolioItemEntity::class,
+    ProjectVersionEntity::class,
+    UnsavedRecoveryEntity::class,
+    DeveloperStatsEntity::class
   ],
-  version = 8,
+  version = 10,
   exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -88,6 +108,7 @@ abstract class CodeQuestDatabase : RoomDatabase() {
   abstract fun reviewQueueDao(): ReviewQueueDao
   abstract fun bookmarkDao(): BookmarkDao
   abstract fun lessonNoteDao(): LessonNoteDao
+  abstract fun devLabDao(): DevLabDao
 
   companion object {
     @Volatile
@@ -137,6 +158,12 @@ abstract class CodeQuestDatabase : RoomDatabase() {
         db.socialProgressionDao().insertFriends(InitialSocialData.defaultFriends())
         db.socialProgressionDao().insertCompetitors(InitialSocialData.defaultCompetitors())
         db.socialProgressionDao().insertUnlockedCosmetics(InitialSocialData.defaultCosmetics())
+        db.devLabDao().insertBugHunts(DevLabData.defaultBugHunts())
+        db.devLabDao().insertTestFirstChallenges(DevLabData.defaultTestFirstChallenges())
+        db.devLabDao().insertGitExercises(DevLabData.defaultGitExercises())
+        db.devLabDao().insertCodeReviews(DevLabData.defaultCodeReviews())
+        db.devLabDao().insertProjectIssues(DevLabData.defaultProjectIssues())
+        db.devLabDao().insertOrUpdateDeveloperStats(DevLabData.defaultDeveloperStats())
       }
     }
   }

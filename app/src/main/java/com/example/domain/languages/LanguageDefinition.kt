@@ -130,7 +130,8 @@ object LanguageRegistry {
     builtins = setOf("cout", "cin", "endl", "vector", "string")
   )
 
-  private val languages = listOf(PYTHON, JAVASCRIPT, JAVA, C, CPP)
+  val SUPPORTED_LANGUAGES = listOf(PYTHON, JAVASCRIPT, JAVA, C, CPP)
+  private val languages = SUPPORTED_LANGUAGES
 
   fun getLanguage(id: String): LanguageDefinition {
     return languages.find { it.id.equals(id, ignoreCase = true) }
@@ -138,4 +139,8 @@ object LanguageRegistry {
   }
 
   fun getAllLanguages(): List<LanguageDefinition> = languages
+
+  fun getRuntime(id: String): com.example.domain.execution.CodeRuntime {
+    return com.example.domain.execution.LanguageRuntimeFactory.getRuntime(id)
+  }
 }

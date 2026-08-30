@@ -13,13 +13,14 @@ class ProjectRunner(
     mainFileContent: String,
     workspaceFiles: Map<String, String>,
     rawInput: String = "",
-    options: ExecutionOptions = ExecutionOptions()
+    options: ExecutionOptions = ExecutionOptions(),
+    language: String = "python"
   ): ExecutionResult {
-    return sandboxEngine.execute(
+    val runtime = com.example.domain.languages.LanguageRegistry.getRuntime(language)
+    return runtime.execute(
       code = mainFileContent,
       rawInput = rawInput,
-      options = options,
-      workspaceFiles = workspaceFiles
+      options = options
     )
   }
 
@@ -31,19 +32,27 @@ class ProjectRunner(
     val startTime = System.currentTimeMillis()
     val tests = project.parseTests()
     val tasks = project.parseTasks()
-    val mainCode = workspaceFiles["main.py"] ?: workspaceFiles.values.firstOrNull() ?: ""
+    
+    // Resolve entry point according to project language
+    val mainCode = when (project.language.lowercase()) {
+      "javascript", "js" -> workspaceFiles["index.js"] ?: workspaceFiles["main.js"] ?: workspaceFiles.values.firstOrNull() ?: ""
+      "java" -> workspaceFiles["src/Main.java"] ?: workspaceFiles["Main.java"] ?: workspaceFiles.values.firstOrNull() ?: ""
+      "c" -> workspaceFiles["main.c"] ?: workspaceFiles.values.firstOrNull() ?: ""
+      "cpp", "c++" -> workspaceFiles["main.cpp"] ?: workspaceFiles.values.firstOrNull() ?: ""
+      else -> workspaceFiles["main.py"] ?: workspaceFiles.values.firstOrNull() ?: ""
+    }
 
     val results = mutableListOf<ProjectTestResult>()
     var passedCount = 0
     var firstFailureSummary: String? = null
+    val runtime = com.example.domain.languages.LanguageRegistry.getRuntime(project.language)
 
     for (test in tests) {
       val testOptions = options.copy(timeoutMs = test.timeoutMs)
-      val execResult = sandboxEngine.execute(
+      val execResult = runtime.execute(
         code = mainCode,
         rawInput = test.input,
-        options = testOptions,
-        workspaceFiles = workspaceFiles
+        options = testOptions
       )
 
       val passed: Boolean

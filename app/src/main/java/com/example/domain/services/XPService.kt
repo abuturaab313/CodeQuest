@@ -32,7 +32,7 @@ class XPService {
     var level = 1
     while (getXpThresholdForLevel(level + 1) <= totalXp) {
       level++
-      if (level >= 100) break // safety ceiling
+      if (level >= 500) break // safety ceiling
     }
     return level
   }
@@ -91,7 +91,11 @@ class XPService {
           3 -> "World 2: Logic Lab"
           4 -> "Speed Coding Mode"
           5 -> "Project Studio"
-          else -> "Mastery Badge Level $newLevel"
+          10 -> "Python Developer Apprentice Badge"
+          50 -> "Senior Coder Rank"
+          100 -> "Staff Software Engineer Rank"
+          500 -> "Principal Engineer: The Final Rank"
+          else -> if (newLevel % 10 == 0) "Mastery Badge Level $newLevel" else "Rank Upgrade"
         }
       )
     } else {

@@ -28,11 +28,20 @@ interface ProjectDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertProjects(projects: List<ProjectEntity>)
 
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertProject(project: ProjectEntity)
+
+  @Query("DELETE FROM projects WHERE id = :projectId")
+  suspend fun deleteProject(projectId: String)
+
   @Query("UPDATE projects SET isCompleted = 1, completedAtEpochMs = :completedAt WHERE id = :projectId")
   suspend fun markProjectCompleted(projectId: String, completedAt: Long = System.currentTimeMillis())
 
   @Query("UPDATE projects SET isUnlocked = :isUnlocked WHERE id = :projectId")
   suspend fun setProjectUnlocked(projectId: String, isUnlocked: Boolean)
+
+  @Query("UPDATE projects SET isPortfolio = :isPortfolio WHERE id = :projectId")
+  suspend fun setProjectPortfolio(projectId: String, isPortfolio: Boolean)
 
   // Project Files
   @Query("SELECT * FROM project_files WHERE projectId = :projectId ORDER BY isMain DESC, fileName ASC")
@@ -65,6 +74,16 @@ interface ProjectDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun saveProjectProgress(progress: ProjectProgressEntity)
+
+  // Version History
+  @Query("SELECT * FROM project_versions WHERE projectId = :projectId ORDER BY versionNumber DESC")
+  suspend fun getProjectVersions(projectId: String): List<com.example.data.models.ProjectVersionEntity>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertProjectVersion(version: com.example.data.models.ProjectVersionEntity)
+
+  @Query("SELECT MAX(versionNumber) FROM project_versions WHERE projectId = :projectId")
+  suspend fun getLatestVersionNumber(projectId: String): Int?
 
   @Transaction
   suspend fun resetProjectToStarterFiles(projectId: String, starterFiles: Map<String, String>) {
