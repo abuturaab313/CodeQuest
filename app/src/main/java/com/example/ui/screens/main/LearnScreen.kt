@@ -927,25 +927,54 @@ private fun LevelMapSerpentNode(
   val isChallenge = lesson.lessonType == LessonType.CHALLENGE
   val isProject = lesson.lessonType == LessonType.PROJECT
 
+  // Determine state
+  val state = when {
+    !lesson.isUnlocked -> "LOCKED"
+    isCurrent && isRecommended -> "CURRENT"
+    !lesson.isCompleted -> "AVAILABLE"
+    lesson.starsEarned == 3 -> "PERFECT"
+    lesson.starsEarned == 2 -> "MASTERED"
+    else -> "COMPLETED"
+  }
+
   val nodeColor = when {
-    lesson.isCompleted -> QuestSuccess
+    state == "PERFECT" -> XpGold
+    state == "MASTERED" -> QuestSuccess
+    state == "COMPLETED" -> QuestSuccess
     isBoss -> HeartRose
     isChallenge -> QuestIndigo
     isProject -> Color(0xFFFF9800)
-    lesson.isUnlocked -> worldTheme.accentColor
+    state == "CURRENT" || state == "AVAILABLE" -> worldTheme.accentColor
     else -> MaterialTheme.colorScheme.outline
   }
 
   val infiniteTransition = rememberInfiniteTransition(label = "pulse_trans")
   val borderPulse by infiniteTransition.animateFloat(
     initialValue = 0f,
-    targetValue = 6f,
+    targetValue = 8f,
     animationSpec = infiniteRepeatable(
       animation = tween(1200, easing = LinearEasing),
       repeatMode = RepeatMode.Reverse
     ),
     label = "pulse_anim"
   )
+
+  // Size logic
+  val outerSize = when (state) {
+    "LOCKED" -> 50.dp
+    "CURRENT" -> 80.dp
+    "BOSS", "PERFECT", "MASTERED" -> 70.dp
+    else -> 60.dp
+  }
+  
+  val innerSize = when (state) {
+    "LOCKED" -> 36.dp
+    "CURRENT" -> 60.dp
+    "BOSS", "PERFECT", "MASTERED" -> 50.dp
+    else -> 44.dp
+  }
+  
+  val isSquareNode = isBoss || isProject
 
   Box(
     modifier = Modifier
@@ -961,38 +990,39 @@ private fun LevelMapSerpentNode(
       horizontalAlignment = Alignment.CenterHorizontally,
       modifier = Modifier.wrapContentSize()
     ) {
-      if (isRecommended) {
+      if (state == "CURRENT") {
         Box(
           modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(XpGold)
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(nodeColor)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
             .testTag("node_rec_tag")
         ) {
           Text(
-            text = "⭐ PLAY NEXT",
+            text = "PLAY",
             style = MaterialTheme.typography.labelSmall.copy(
               color = Color.White,
-              fontSize = 9.sp,
-              fontWeight = FontWeight.Black
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Black,
+              letterSpacing = 1.sp
             )
           )
         }
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
       }
 
       // Outer interactive circular / shaped level button
       Box(
         modifier = Modifier
-          .size(if (isBoss) 74.dp else if (isCurrent) 68.dp else 60.dp)
-          .clip(if (isBoss) RoundedCornerShape(20.dp) else CircleShape)
+          .size(outerSize)
+          .clip(if (isSquareNode) RoundedCornerShape(20.dp) else CircleShape)
           .background(
-            if (lesson.isUnlocked) nodeColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+            if (state == "LOCKED") MaterialTheme.colorScheme.surfaceVariant else nodeColor.copy(alpha = 0.15f)
           )
           .border(
-            width = if (isRecommended) borderPulse.dp else if (isCurrent) 3.5.dp else 2.dp,
-            color = if (isRecommended) XpGold else nodeColor,
-            shape = if (isBoss) RoundedCornerShape(20.dp) else CircleShape
+            width = if (state == "CURRENT") borderPulse.dp else if (state == "MASTERED") 4.dp else 2.dp,
+            color = if (state == "CURRENT") nodeColor else if (state == "MASTERED") XpGold else nodeColor.copy(alpha = if (state == "LOCKED") 0.4f else 1f),
+            shape = if (isSquareNode) RoundedCornerShape(20.dp) else CircleShape
           )
           .clickable { onClick() }
           .testTag("lesson_node_${lesson.id}"),
@@ -1001,32 +1031,33 @@ private fun LevelMapSerpentNode(
         // Inner icon container
         Box(
           modifier = Modifier
-            .size(if (isBoss) 54.dp else if (isCurrent) 50.dp else 44.dp)
-            .clip(if (isBoss) RoundedCornerShape(14.dp) else CircleShape)
+            .size(innerSize)
+            .clip(if (isSquareNode) RoundedCornerShape(14.dp) else CircleShape)
             .background(
-              if (lesson.isUnlocked) nodeColor else Color.Gray.copy(alpha = 0.25f)
+              if (state == "LOCKED") Color.Gray.copy(alpha = 0.25f) else nodeColor
             ),
           contentAlignment = Alignment.Center
         ) {
           Icon(
             imageVector = when {
-              lesson.isCompleted -> Icons.Default.Check
-              !lesson.isUnlocked -> Icons.Default.Lock
+              state == "PERFECT" -> Icons.Default.Stars
+              state == "MASTERED" || state == "COMPLETED" -> Icons.Default.Check
+              state == "LOCKED" -> Icons.Default.Lock
               isBoss -> Icons.Default.MilitaryTech
               isChallenge -> Icons.Default.Psychology
               isProject -> Icons.Default.Terminal
               else -> Icons.Default.PlayArrow
             },
             contentDescription = null,
-            tint = if (lesson.isUnlocked) Color.White else Color.Gray,
-            modifier = Modifier.size(if (isBoss) 28.dp else 22.dp)
+            tint = if (state == "LOCKED") Color.Gray else Color.White,
+            modifier = Modifier.size(if (state == "CURRENT") 28.dp else 22.dp)
           )
         }
       }
 
       // 3 Stars rating underneath completed nodes
-      if (lesson.isCompleted) {
-        Spacer(modifier = Modifier.height(3.dp))
+      if (state == "PERFECT") {
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
           horizontalArrangement = Arrangement.spacedBy(2.dp),
           verticalAlignment = Alignment.CenterVertically
@@ -1036,34 +1067,51 @@ private fun LevelMapSerpentNode(
               imageVector = Icons.Default.Star,
               contentDescription = null,
               tint = XpGold,
-              modifier = Modifier.size(13.dp)
+              modifier = Modifier.size(16.dp)
+            )
+          }
+        }
+      } else if (state == "MASTERED") {
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+          horizontalArrangement = Arrangement.spacedBy(2.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          for (i in 1..2) {
+            Icon(
+              imageVector = Icons.Default.Star,
+              contentDescription = null,
+              tint = XpGold,
+              modifier = Modifier.size(14.dp)
             )
           }
         }
       }
 
-      Spacer(modifier = Modifier.height(3.dp))
+      Spacer(modifier = Modifier.height(6.dp))
 
       // Node label
-      Text(
-        text = when {
-          isBoss -> "⚔️ BOSS BATTLE"
-          isChallenge -> "CHALLENGE"
-          isProject -> "PROJECT"
-          else -> "Level ${lesson.lessonNumber}"
-        },
-        style = MaterialTheme.typography.labelSmall.copy(
-          fontWeight = FontWeight.Black,
-          color = if (lesson.isUnlocked) nodeColor else Color.Gray
+      if (state != "LOCKED") {
+        Text(
+          text = when {
+            isBoss -> "⚔️ BOSS BATTLE"
+            isChallenge -> "CHALLENGE"
+            isProject -> "PROJECT"
+            else -> "Level ${lesson.lessonNumber}"
+          },
+          style = MaterialTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Black,
+            color = nodeColor
+          )
         )
-      )
-      
-      Text(
-        text = lesson.title,
-        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
-        color = if (lesson.isUnlocked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = 1
-      )
+        
+        Text(
+          text = lesson.title,
+          style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+          color = MaterialTheme.colorScheme.onSurface,
+          maxLines = 1
+        )
+      }
     }
   }
 }
