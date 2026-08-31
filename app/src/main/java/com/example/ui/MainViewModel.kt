@@ -495,10 +495,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
   // Sound triggers
   fun playTapSound() = soundManager.playTap()
+  fun playSelectSound() = soundManager.playSelect()
+  fun playLevelSelectedSound() = soundManager.playLevelSelected()
+  fun playLevelUnlockedSound() = soundManager.playLevelUnlocked()
   fun playCorrectSound() = soundManager.playCorrect()
   fun playWrongSound() = soundManager.playWrong()
+  fun playCodeRunSound() = soundManager.playCodeRun()
+  fun playTestPassedSound() = soundManager.playTestPassed()
+  fun playTestFailedSound() = soundManager.playTestFailed()
+  fun playXpEarnedSound() = soundManager.playXpEarned()
+  fun playStarEarnedSound() = soundManager.playStarEarned()
+  fun playLevelCompleteSound() = soundManager.playLevelComplete()
+  fun playBossStartSound() = soundManager.playBossStart()
+  fun playBossDefeatedSound() = soundManager.playBossDefeated()
+  fun playAchievementSound() = soundManager.playAchievement()
+  fun playStreakSound() = soundManager.playStreak()
+  fun playRewardSound() = soundManager.playReward()
   fun playSuccessSound() = soundManager.playSuccess()
-  fun playSelectSound() = soundManager.playSelect()
 
   override fun onCleared() {
     super.onCleared()

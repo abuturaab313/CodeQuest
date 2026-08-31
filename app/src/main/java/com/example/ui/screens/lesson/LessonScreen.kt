@@ -1,5 +1,6 @@
 package com.example.ui.screens.lesson
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -139,9 +141,22 @@ fun LessonScreen(
     mutableIntStateOf(initialProgress?.hintsUsedCount ?: 0)
   }
 
-  // Personal Note State
+  // Completion state
+  var completionScoringResult by remember { mutableStateOf<LessonScoringResult?>(null) }
+
+  // Personal Note State & Exit Confirmation
   var showNoteDialog by remember { mutableStateOf(false) }
+  var showQuitConfirmDialog by remember { mutableStateOf(false) }
   var noteText by remember { mutableStateOf(initialNoteText) }
+
+  // Intercept back button to show the quit confirmation dialog
+  BackHandler(enabled = true) {
+    if (completionScoringResult != null) {
+      onClose()
+    } else {
+      showQuitConfirmDialog = true
+    }
+  }
 
   // Answer states for active exercise
   var selectedAnswer by remember { mutableStateOf<String?>(null) }
@@ -156,9 +171,6 @@ fun LessonScreen(
   val assembledTokens = remember { mutableStateListOf<String>() }
   val availableTokens = remember { mutableStateListOf<String>() }
   val matchedPairs = remember { mutableStateMapOf<String, String>() }
-
-  // Completion state
-  var completionScoringResult by remember { mutableStateOf<LessonScoringResult?>(null) }
 
   val coroutineScope = rememberCoroutineScope()
   val executionService = remember { DefaultCodeExecutionService() }
@@ -206,9 +218,12 @@ fun LessonScreen(
     )
   }
 
+  var hasInitializedFirstExercise by remember { mutableStateOf(false) }
+
   // Initialize on first composition
-  LaunchedEffect(exercises) {
-    if (exercises.isNotEmpty() && !isShowingConceptIntro) {
+  LaunchedEffect(exercises, isShowingConceptIntro) {
+    if (exercises.isNotEmpty() && !isShowingConceptIntro && !hasInitializedFirstExercise) {
+      hasInitializedFirstExercise = true
       loadExercise(exerciseIndex)
     }
   }
@@ -220,11 +235,12 @@ fun LessonScreen(
       .navigationBarsPadding(),
     color = MaterialTheme.colorScheme.background
   ) {
-    if (completionScoringResult != null) {
+    val scoring = completionScoringResult
+    if (scoring != null) {
       // Completed Victory Screen
       LessonCompletionView(
         lesson = lesson,
-        scoringResult = completionScoringResult!!,
+        scoringResult = scoring,
         onContinue = {
           onCompleteLesson(
             totalExercises,
@@ -250,7 +266,13 @@ fun LessonScreen(
           horizontalArrangement = Arrangement.SpaceBetween
         ) {
           IconButton(
-            onClick = onClose,
+            onClick = {
+              if (completionScoringResult != null) {
+                onClose()
+              } else {
+                showQuitConfirmDialog = true
+              }
+            },
             modifier = Modifier.testTag("lesson_close_button")
           ) {
             Icon(Icons.Default.Close, contentDescription = "Close")
@@ -615,44 +637,47 @@ fun LessonScreen(
 
             // Answer Result Banner
             AnimatedVisibility(visible = isAnswerSubmitted && validationResult != null) {
-              val res = validationResult!!
-              Column(modifier = Modifier.padding(top = 16.dp)) {
-                Surface(
-                  modifier = Modifier.fillMaxWidth(),
-                  shape = RoundedCornerShape(14.dp),
-                  color = if (res.isCorrect) QuestSuccess.copy(alpha = 0.12f) else HeartRose.copy(alpha = 0.12f),
-                  border = androidx.compose.foundation.BorderStroke(1.5.dp, if (res.isCorrect) QuestSuccess else HeartRose)
-                ) {
-                  Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                      Icon(
-                        if (res.isCorrect) Icons.Default.CheckCircle else Icons.Default.Close,
-                        contentDescription = null,
-                        tint = if (res.isCorrect) QuestSuccess else HeartRose,
-                        modifier = Modifier.size(20.dp)
-                      )
-                      Spacer(modifier = Modifier.width(8.dp))
-                      Text(
-                        text = if (res.isCorrect) "Awesome! Correct Answer" else "Not quite right",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                          color = if (res.isCorrect) QuestSuccess else HeartRose,
-                          fontWeight = FontWeight.Bold
+              val res = validationResult
+              if (res != null) {
+                Column(modifier = Modifier.padding(top = 16.dp)) {
+                  Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (res.isCorrect) QuestSuccess.copy(alpha = 0.12f) else HeartRose.copy(alpha = 0.12f),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, if (res.isCorrect) QuestSuccess else HeartRose)
+                  ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                      Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                          if (res.isCorrect) Icons.Default.CheckCircle else Icons.Default.Close,
+                          contentDescription = null,
+                          tint = if (res.isCorrect) QuestSuccess else HeartRose,
+                          modifier = Modifier.size(20.dp)
                         )
-                      )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                      text = res.feedbackMessage,
-                      style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                      color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (currentExercise.explanation.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                          text = if (res.isCorrect) "Awesome! Correct Answer" else "Not quite right",
+                          style = MaterialTheme.typography.titleMedium.copy(
+                            color = if (res.isCorrect) QuestSuccess else HeartRose,
+                            fontWeight = FontWeight.Bold
+                          )
+                        )
+                      }
                       Spacer(modifier = Modifier.height(4.dp))
                       Text(
-                        text = currentExercise.explanation,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = res.feedbackMessage,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface
                       )
+                      val explanation = currentExercise?.explanation ?: ""
+                      if (explanation.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                          text = explanation,
+                          style = MaterialTheme.typography.bodySmall,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                      }
                     }
                   }
                 }
@@ -732,6 +757,50 @@ fun LessonScreen(
           }
         }
       }
+    }
+
+    if (showQuitConfirmDialog) {
+      AlertDialog(
+        onDismissRequest = { showQuitConfirmDialog = false },
+        icon = {
+          Icon(Icons.Default.Warning, contentDescription = null, tint = HeartRose, modifier = Modifier.size(32.dp))
+        },
+        title = {
+          Text(
+            text = "Quit Session?",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+          )
+        },
+        text = {
+          Text(
+            text = "Wait, don't go! You'll lose your current streak bonuses and unsaved exercise state if you quit now.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        },
+        confirmButton = {
+          Button(
+            onClick = {
+              showQuitConfirmDialog = false
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = QuestPrimary),
+            modifier = Modifier.testTag("btn_keep_learning")
+          ) {
+            Text("Keep Learning")
+          }
+        },
+        dismissButton = {
+          TextButton(
+            onClick = {
+              showQuitConfirmDialog = false
+              onClose()
+            },
+            modifier = Modifier.testTag("btn_stop_session")
+          ) {
+            Text("Stop Session", color = HeartRose)
+          }
+        }
+      )
     }
 
     if (showNoteDialog) {

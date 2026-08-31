@@ -207,12 +207,13 @@ class AnswerValidator {
     }
 
     // Also parse from correctAnswers if formatted as "Left:Right" or "Left->Right"
-    correctAnswers.forEach { ans ->
-      if (ans.contains("->")) {
-        val parts = ans.split("->", limit = 2)
+    correctAnswers.flatMap { it.split(";", ",") }.forEach { ans ->
+      val trimmed = ans.trim()
+      if (trimmed.contains("->")) {
+        val parts = trimmed.split("->", limit = 2)
         expectedPairs[parts[0].trim().lowercase()] = parts[1].trim().lowercase()
-      } else if (ans.contains(":")) {
-        val parts = ans.split(":", limit = 2)
+      } else if (trimmed.contains(":")) {
+        val parts = trimmed.split(":", limit = 2)
         expectedPairs[parts[0].trim().lowercase()] = parts[1].trim().lowercase()
       }
     }
