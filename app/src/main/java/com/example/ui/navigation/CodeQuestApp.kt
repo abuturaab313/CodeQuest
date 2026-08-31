@@ -45,7 +45,6 @@ import com.example.ui.components.RewardToast
 import com.example.ui.components.ai.CodeCoachSheet
 import com.example.ui.screens.CodeLabScreen
 import com.example.ui.screens.lesson.LessonScreen
-import com.example.ui.screens.main.HomeScreen
 import com.example.ui.screens.main.LearnScreen
 import com.example.ui.screens.main.PracticeScreen
 import com.example.ui.screens.main.ProfileScreen
@@ -69,8 +68,7 @@ import com.example.ui.theme.QuestPrimaryContainer
 import kotlinx.coroutines.launch
 
 enum class MainTab(val title: String, val icon: ImageVector, val tag: String) {
-  HOME("Home", Icons.Default.Home, "nav_tab_home"),
-  LEARN("Learn", Icons.Default.Explore, "nav_tab_learn"),
+  MAP("Quest Map", Icons.Default.Explore, "nav_tab_map"),
   PRACTICE("Practice", Icons.Default.AutoAwesome, "nav_tab_practice"),
   PROJECTS("Dev Lab", Icons.Default.Science, "nav_tab_projects"),
   PROFILE("Profile", Icons.Default.Person, "nav_tab_profile")
@@ -128,7 +126,7 @@ fun CodeQuestApp(
   val activeReward by viewModel.activeReward.collectAsStateWithLifecycle()
   val showSettingsDialog by viewModel.showSettingsDialog.collectAsStateWithLifecycle()
 
-  var selectedTab by remember { mutableStateOf(MainTab.HOME) }
+  var selectedTab by remember { mutableStateOf(MainTab.MAP) }
   var activeLesson by remember { mutableStateOf<LessonEntity?>(null) }
   var activeExercises by remember { mutableStateOf<List<ExerciseEntity>>(emptyList()) }
   var activeLessonProgress by remember { mutableStateOf<com.example.data.models.LessonProgressEntity?>(null) }
@@ -406,7 +404,7 @@ fun CodeQuestApp(
         },
         onStreakClick = {
           viewModel.playTapSound()
-          selectedTab = MainTab.HOME
+          selectedTab = MainTab.MAP
         },
         onCoinsClick = {
           viewModel.playTapSound()
@@ -462,40 +460,10 @@ fun CodeQuestApp(
         .background(MaterialTheme.colorScheme.background)
     ) {
       when (selectedTab) {
-        MainTab.HOME -> HomeScreen(
-          playerProgress = playerProgress,
+        MainTab.MAP -> LearnScreen(
           user = user,
+          playerProgress = playerProgress,
           dailyQuests = dailyQuests,
-          achievements = achievements,
-          recommendations = recommendations,
-          dailyPracticeState = dailyPracticeState?.first,
-          onContinueLearning = { targetLesson ->
-            val lessonToStart = targetLesson
-              ?: lessons.firstOrNull { it.isUnlocked && !it.isCompleted }
-              ?: lessons.firstOrNull()
-            if (lessonToStart != null) {
-              coroutineScope.launch {
-                val ex = viewModel.getExercisesForLesson(lessonToStart.id)
-                val prog = viewModel.getLessonProgress(lessonToStart.id)
-                activeExercises = ex
-                activeLessonProgress = prog
-                activeLesson = lessonToStart
-                viewModel.playTapSound()
-              }
-            }
-          },
-          onStartDailyChallenge = {
-            val challengeLesson = lessons.firstOrNull { it.id == "py_w1_l7" } ?: lessons.firstOrNull()
-            if (challengeLesson != null) {
-              coroutineScope.launch {
-                val ex = viewModel.getExercisesForLesson(challengeLesson.id)
-                val prog = viewModel.getLessonProgress(challengeLesson.id)
-                activeExercises = ex
-                activeLessonProgress = prog
-                activeLesson = challengeLesson
-              }
-            }
-          },
           onClaimQuest = { quest ->
             viewModel.claimQuest(quest)
           },
@@ -505,10 +473,6 @@ fun CodeQuestApp(
           onNavigateToProfile = {
             selectedTab = MainTab.PROFILE
           },
-          onOpenCodeCoach = { ctx -> viewModel.openCodeCoach(ctx) }
-        )
-
-        MainTab.LEARN -> LearnScreen(
           worlds = worlds,
           lessons = lessons,
           onSelectLesson = { lesson ->

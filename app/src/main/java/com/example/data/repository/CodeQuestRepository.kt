@@ -240,6 +240,28 @@ class CodeQuestRepository(
 
   suspend fun completeOnboarding(experienceLevel: String, language: String, dailyGoalMinutes: Int) {
     userDao.completeOnboarding(experienceLevel, language, dailyGoalMinutes)
+
+    if (experienceLevel != "BEGINNER") {
+        val worldsToUnlock = when (experienceLevel) {
+            "SOME_EXPERIENCE" -> listOf("py_w2")
+            "INTERMEDIATE" -> listOf("py_w2", "py_w3")
+            "ADVANCED" -> listOf("py_w2", "py_w3", "py_w4", "py_w5", "py_w6", "py_w7")
+            else -> emptyList()
+        }
+        
+        worldsToUnlock.forEach { worldId ->
+            courseDao.unlockWorld(worldId)
+        }
+        
+        // Let's also unlock the first lesson of each of those worlds so the path opens up
+        val lessons = courseDao.getAllLessonsOnce()
+        worldsToUnlock.forEach { worldId ->
+            val firstLesson = lessons.filter { it.worldId == worldId }.minByOrNull { it.lessonNumber }
+            if (firstLesson != null) {
+                courseDao.unlockLesson(firstLesson.id)
+            }
+        }
+    }
   }
 
   suspend fun resetOnboarding() {

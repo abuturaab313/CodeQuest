@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.Toll
@@ -54,6 +55,7 @@ import com.example.ui.theme.QuestSecondary
 import com.example.ui.theme.QuestSecondaryDark
 import com.example.ui.theme.StreakFlame
 import com.example.ui.theme.XpGold
+import com.example.ui.theme.QuestSuccess
 
 import com.example.ui.audio.LocalSoundManager
 
@@ -330,5 +332,69 @@ fun GameCard(
     tonalElevation = 1.dp
   ) {
     content()
+  }
+}
+
+@Composable
+fun QuestCard(
+  quest: com.example.data.models.DailyQuestEntity,
+  onClaim: () -> Unit
+) {
+  val progress = (quest.currentValue.toFloat() / quest.targetValue.coerceAtLeast(1)).coerceIn(0f, 1f)
+
+  GameCard {
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(16.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = quest.title,
+          style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+          color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          androidx.compose.material3.LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+              .weight(1f)
+              .height(8.dp)
+              .clip(RoundedCornerShape(4.dp)),
+            color = if (quest.isCompleted) QuestSuccess else QuestPrimary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            strokeCap = StrokeCap.Round
+          )
+          Spacer(modifier = Modifier.width(12.dp))
+          Text(
+            text = "${quest.currentValue}/${quest.targetValue}",
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.width(16.dp))
+
+      if (quest.isCompleted && !quest.isClaimed) {
+        androidx.compose.material3.Button(
+          onClick = onClaim,
+          colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = QuestPrimary),
+          shape = RoundedCornerShape(12.dp),
+          modifier = Modifier.height(36.dp).testTag("claim_quest_button_${quest.id}")
+        ) {
+          Text("Claim", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+        }
+      } else if (quest.isClaimed) {
+        Icon(Icons.Default.CheckCircle, contentDescription = "Claimed", tint = QuestSuccess, modifier = Modifier.size(24.dp))
+      } else {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Text("+${quest.xpReward}", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = XpGold))
+          Icon(Icons.Default.Stars, contentDescription = null, tint = XpGold, modifier = Modifier.size(14.dp))
+        }
+      }
+    }
   }
 }

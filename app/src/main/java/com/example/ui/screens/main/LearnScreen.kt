@@ -47,9 +47,21 @@ import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import com.example.data.models.UserEntity
+import com.example.data.models.DailyQuestEntity
+import com.example.domain.services.PlayerProgress
+import com.example.ui.components.GameHudBar
+import com.example.ui.components.QuestCard
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LearnScreen(
+  user: UserEntity?,
+  playerProgress: PlayerProgress?,
+  dailyQuests: List<DailyQuestEntity>,
+  onClaimQuest: (DailyQuestEntity) -> Unit,
+  onOpenSettings: () -> Unit,
+  onNavigateToProfile: () -> Unit,
   worlds: List<WorldEntity>,
   lessons: List<LessonEntity>,
   onSelectLesson: (LessonEntity) -> Unit,
@@ -138,6 +150,18 @@ fun LearnScreen(
       modifier = Modifier.fillMaxSize(),
       contentPadding = PaddingValues(bottom = 40.dp)
     ) {
+      item {
+        Column(
+          modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
+        ) {
+          GameHudBar(
+            user = user,
+            onHeartsClick = { }, // Add click handlers if you want
+            onCoinsClick = { }
+          )
+        }
+      }
+      
       // Top Title Bar with Compare Languages Action
       item {
         Column(
@@ -152,29 +176,32 @@ fun LearnScreen(
           ) {
             Column(modifier = Modifier.weight(1f)) {
               Text(
-                text = "Quest World Map",
+                text = "Quest Map",
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Black),
                 color = MaterialTheme.colorScheme.onBackground
               )
               Text(
-                text = "Progress through chapters, challenge bosses, and master code!",
+                text = "Follow the path, complete levels, and master code!",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
               )
             }
-
-            FilledTonalButton(
-              onClick = { showConceptComparisonDialog = true },
-              shape = RoundedCornerShape(10.dp),
-              colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = QuestPrimary.copy(alpha = 0.15f),
-                contentColor = QuestPrimary
-              ),
-              modifier = Modifier.padding(start = 8.dp)
-            ) {
-              Icon(Icons.Default.CompareArrows, contentDescription = null, modifier = Modifier.size(16.dp))
-              Spacer(modifier = Modifier.width(4.dp))
-              Text("Compare", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+          }
+        }
+      }
+      
+      // Daily Quests (Scrollable horizontal if there are multiple)
+      if (dailyQuests.isNotEmpty()) {
+        item {
+          LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+          ) {
+            items(dailyQuests.filter { !it.isClaimed }) { quest ->
+              Box(modifier = Modifier.width(300.dp)) {
+                QuestCard(quest = quest, onClaim = { onClaimQuest(quest) })
+              }
             }
           }
         }
